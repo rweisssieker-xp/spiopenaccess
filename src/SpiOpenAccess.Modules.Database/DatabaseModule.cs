@@ -25,10 +25,14 @@ public sealed class DatabaseModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
+        return BuildHomeScreen(workspace, CreateWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, DatabaseWorkspaceState state)
+    {
         var customersTable = _catalog.Tables.FirstOrDefault(table =>
             string.Equals(table.Name, "CUSTOMERS", StringComparison.OrdinalIgnoreCase));
-
-        var firstCustomer = customersTable?.Records.FirstOrDefault();
+        var firstCustomer = customersTable is null ? null : GetRecords(state, customersTable.Name).FirstOrDefault();
         var content = new List<string>
         {
             $"Workspace        : {workspace.Name}",
@@ -42,7 +46,7 @@ public sealed class DatabaseModule : IOfficeModule
         };
 
         content.AddRange(_catalog.Tables.Select(table =>
-            $"  {table.Name,-12} {table.Records.Count,4} rows  key={table.KeyField,-10} cols=[{string.Join(", ", table.Columns.Select(column => column.Name))}]"));
+            $"  {table.Name,-12} {GetRecords(state, table.Name).Count,4} rows  key={table.KeyField,-10} cols=[{string.Join(", ", table.Columns.Select(column => column.Name))}]"));
         content.Add("Form layouts      :");
         content.AddRange(_catalog.Forms.Select(form =>
             $"  {form.Name,-14} table={form.Table,-10} fields=[{string.Join(", ", form.Fields)}]"));
@@ -61,6 +65,20 @@ public sealed class DatabaseModule : IOfficeModule
             Info.Summary,
             content,
             ["open CUSTOMERS", "edit CUSTOMER_CARD", "run AGING"]);
+    }
+
+    public DatabaseWorkspaceState CreateWorkspaceState()
+    {
+        return new DatabaseWorkspaceState
+        {
+            Tables = _catalog.Tables.Select(table => new DatabaseTableState
+            {
+                Name = table.Name,
+                Records = table.Records
+                    .Select(record => new Dictionary<string, string>(record, StringComparer.OrdinalIgnoreCase))
+                    .ToList()
+            }).ToList()
+        };
     }
 
     public DatabaseTable? FindTable(string tableName)
@@ -85,17 +103,23 @@ public sealed class DatabaseModule : IOfficeModule
 
     public ModuleScreen BuildTableScreen(string tableName)
     {
+        return BuildTableScreen(CreateWorkspaceState(), tableName);
+    }
+
+    public ModuleScreen BuildTableScreen(DatabaseWorkspaceState state, string tableName)
+    {
         var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
+        var records = GetRecords(state, table.Name);
         var content = new List<string>
         {
             $"Table            : {table.Name}",
             $"Key field        : {table.KeyField}",
             $"Columns          : {string.Join(", ", table.Columns.Select(column => $"{column.Name}:{column.Type}({column.Width})"))}",
-            $"Record count     : {table.Records.Count}",
+            $"Record count     : {records.Count}",
             "Rows             :"
         };
 
-        foreach (var record in table.Records.Take(10))
+        foreach (var record in records.Take(10))
         {
             content.Add($"  {string.Join(" | ", record.Select(field => $"{field.Key}={field.Value}"))}");
         }
@@ -104,16 +128,21 @@ public sealed class DatabaseModule : IOfficeModule
             $"Table {table.Name}",
             "Tabellenansicht mit Datensatzvorschau.",
             content,
-            [$"edit {GetPrimaryFormForTable(table.Name)?.Name ?? "FORM"}", $"run {GetPrimaryReportForTable(table.Name)?.Name ?? "REPORT"}", "back"]);
+            [$"find {table.Name} <term>", $"append {table.Name} field=value;...", $"update {table.Name} key field value"]);
     }
 
     public ModuleScreen BuildFormScreen(string formName)
+    {
+        return BuildFormScreen(CreateWorkspaceState(), formName);
+    }
+
+    public ModuleScreen BuildFormScreen(DatabaseWorkspaceState state, string formName)
     {
         var form = _catalog.Forms.FirstOrDefault(candidate =>
             string.Equals(candidate.Name, formName, StringComparison.OrdinalIgnoreCase))
             ?? throw new KeyNotFoundException($"Unknown form '{formName}'.");
         var table = FindTable(form.Table) ?? throw new KeyNotFoundException($"Unknown table '{form.Table}'.");
-        var sampleRecord = table.Records.FirstOrDefault();
+        var sampleRecord = GetRecords(state, table.Name).FirstOrDefault();
 
         var content = new List<string>
         {
@@ -140,22 +169,28 @@ public sealed class DatabaseModule : IOfficeModule
 
     public ModuleScreen BuildReportScreen(string reportName)
     {
+        return BuildReportScreen(CreateWorkspaceState(), reportName);
+    }
+
+    public ModuleScreen BuildReportScreen(DatabaseWorkspaceState state, string reportName)
+    {
         var report = _catalog.Reports.FirstOrDefault(candidate =>
             string.Equals(candidate.Name, reportName, StringComparison.OrdinalIgnoreCase))
             ?? throw new KeyNotFoundException($"Unknown report '{reportName}'.");
         var table = FindTable(report.Table) ?? throw new KeyNotFoundException($"Unknown table '{report.Table}'.");
 
+        var records = GetRecords(state, table.Name);
         var content = new List<string>
         {
             $"Report           : {report.Name}",
             $"Source table     : {report.Table}",
             $"Group by         : {report.GroupBy}",
             $"Summaries        : {string.Join(", ", report.Summaries)}",
-            $"Input rows       : {table.Records.Count}",
+            $"Input rows       : {records.Count}",
             "Preview          :"
         };
 
-        foreach (var grouping in table.Records.GroupBy(record => record.GetValueOrDefault(report.GroupBy, "<null>")))
+        foreach (var grouping in records.GroupBy(record => record.GetValueOrDefault(report.GroupBy, "<null>")))
         {
             content.Add($"  {grouping.Key,-16} count={grouping.Count()}");
         }
@@ -175,5 +210,92 @@ public sealed class DatabaseModule : IOfficeModule
     public ReportDefinition? GetPrimaryReportForTable(string tableName)
     {
         return GetReportsForTable(tableName).FirstOrDefault();
+    }
+
+    public ModuleScreen BuildSearchScreen(DatabaseWorkspaceState state, string tableName, string searchTerm)
+    {
+        var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
+        var matches = GetRecords(state, table.Name)
+            .Where(record => record.Values.Any(value => value.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        var content = new List<string>
+        {
+            $"Table            : {table.Name}",
+            $"Search term      : {searchTerm}",
+            $"Matches          : {matches.Count}",
+            "Results          :"
+        };
+        content.AddRange(matches.Select(record => $"  {string.Join(" | ", record.Select(field => $"{field.Key}={field.Value}"))}"));
+        if (matches.Count == 0)
+        {
+            content.Add("  <none>");
+        }
+
+        return ModuleScreen.Create(
+            $"Find {table.Name}",
+            "Suche ueber sichtbare Tabellenfelder.",
+            content,
+            [$"open {table.Name}", $"append {table.Name} field=value;...", "back"]);
+    }
+
+    public ModuleScreen AppendRecord(DatabaseWorkspaceState state, string tableName, string assignments)
+    {
+        var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
+        var record = ParseAssignments(assignments, table.Columns.Select(column => column.Name));
+        var keyField = table.KeyField;
+        if (!record.ContainsKey(keyField))
+        {
+            throw new InvalidOperationException($"Missing key field '{keyField}'.");
+        }
+
+        GetRecords(state, table.Name).Add(new Dictionary<string, string>(record, StringComparer.OrdinalIgnoreCase));
+        return BuildTableScreen(state, table.Name);
+    }
+
+    public ModuleScreen UpdateRecord(DatabaseWorkspaceState state, string tableName, string keyValue, string fieldName, string newValue)
+    {
+        var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
+        var keyField = table.KeyField;
+        var record = GetRecords(state, table.Name)
+            .FirstOrDefault(candidate => string.Equals(candidate.GetValueOrDefault(keyField), keyValue, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Unknown record '{keyValue}' in table '{tableName}'.");
+
+        if (!table.Columns.Any(column => string.Equals(column.Name, fieldName, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new KeyNotFoundException($"Unknown field '{fieldName}' in table '{tableName}'.");
+        }
+
+        record[fieldName] = newValue;
+        return BuildTableScreen(state, table.Name);
+    }
+
+    private static List<Dictionary<string, string>> GetRecords(DatabaseWorkspaceState state, string tableName)
+    {
+        return state.GetTable(tableName).Records;
+    }
+
+    private static Dictionary<string, string> ParseAssignments(string assignments, IEnumerable<string> validColumns)
+    {
+        var valid = new HashSet<string>(validColumns, StringComparer.OrdinalIgnoreCase);
+        var record = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var pairs = assignments.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            var parts = pair.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length != 2)
+            {
+                throw new InvalidOperationException("Assignments must use field=value;field=value.");
+            }
+
+            if (!valid.Contains(parts[0]))
+            {
+                throw new KeyNotFoundException($"Unknown field '{parts[0]}'.");
+            }
+
+            record[parts[0]] = parts[1];
+        }
+
+        return record;
     }
 }

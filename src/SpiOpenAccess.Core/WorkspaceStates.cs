@@ -50,3 +50,21 @@ public sealed class MailWorkspaceState
     public string Subject { get; set; } = "Weekly pipeline update";
     public string Body { get; set; } = "Please send the current pipeline figures before noon.";
 }
+
+public sealed class DatabaseWorkspaceState
+{
+    public List<DatabaseTableState> Tables { get; set; } = [];
+
+    public DatabaseTableState GetTable(string tableName)
+    {
+        return Tables.FirstOrDefault(table => string.Equals(table.Name, tableName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
+    }
+}
+
+public sealed class DatabaseTableState
+{
+    public string Name { get; set; } = string.Empty;
+
+    public List<Dictionary<string, string>> Records { get; set; } = [];
+}

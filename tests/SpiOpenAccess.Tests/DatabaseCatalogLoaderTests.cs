@@ -71,13 +71,29 @@ public sealed class DatabaseCatalogLoaderTests
     public void DatabaseModule_BuildTableFormAndReportScreens_ReturnExpectedDetails()
     {
         var module = new DatabaseModule(DatabaseCatalogLoader.LoadDefault());
+        var state = module.CreateWorkspaceState();
 
-        var tableScreen = module.BuildTableScreen("CUSTOMERS");
-        var formScreen = module.BuildFormScreen("CUSTOMER_CARD");
-        var reportScreen = module.BuildReportScreen("AGING");
+        var tableScreen = module.BuildTableScreen(state, "CUSTOMERS");
+        var formScreen = module.BuildFormScreen(state, "CUSTOMER_CARD");
+        var reportScreen = module.BuildReportScreen(state, "AGING");
 
         Assert.Contains(tableScreen.Content, line => line.Contains("Nordwest Handel", StringComparison.Ordinal));
         Assert.Contains(formScreen.Content, line => line.Contains("Bound table      : CUSTOMERS", StringComparison.Ordinal));
         Assert.Contains(reportScreen.Content, line => line.Contains("OPEN", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DatabaseModule_CanSearchAppendAndUpdateRecords()
+    {
+        var module = new DatabaseModule(DatabaseCatalogLoader.LoadDefault());
+        var state = module.CreateWorkspaceState();
+
+        var search = module.BuildSearchScreen(state, "CUSTOMERS", "Bremen");
+        var appended = module.AppendRecord(state, "CUSTOMERS", "Id=C-1004;Company=Retro Works;City=Berlin;Tier=B");
+        var updated = module.UpdateRecord(state, "CUSTOMERS", "C-1004", "City", "Leipzig");
+
+        Assert.Contains(search.Content, line => line.Contains("Nordwest Handel", StringComparison.Ordinal));
+        Assert.Contains(appended.Content, line => line.Contains("Retro Works", StringComparison.Ordinal));
+        Assert.Contains(updated.Content, line => line.Contains("Leipzig", StringComparison.Ordinal));
     }
 }

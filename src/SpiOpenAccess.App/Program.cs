@@ -14,6 +14,7 @@ const int VisibleBodyLines = 17;
 var suite = OfficeSuiteFactory.CreateDefault();
 var sessionStore = new AppSessionStore(Directory.GetCurrentDirectory());
 var sessionState = sessionStore.Load();
+SeedDatabaseStateIfNeeded(suite, sessionState);
 
 if (args.Length > 0)
 {
@@ -110,11 +111,25 @@ static ModuleScreen BuildHomeScreen(IOfficeModule module, OfficeWorkspace worksp
 {
     return module switch
     {
+        DatabaseModule database => database.BuildHomeScreen(workspace, sessionState.Database),
         SpreadsheetModule spreadsheet => spreadsheet.BuildHomeScreen(workspace, sessionState.Spreadsheet),
         WordProcessingModule word => word.BuildHomeScreen(workspace, sessionState.Word),
         MailModule mail => mail.BuildHomeScreen(workspace, sessionState.Mail),
         _ => module.BuildHomeScreen(workspace)
     };
+}
+
+static void SeedDatabaseStateIfNeeded(OfficeSuite suite, AppSessionState sessionState)
+{
+    if (sessionState.Database.Tables.Count > 0)
+    {
+        return;
+    }
+
+    if (suite.FindModule("db") is DatabaseModule databaseModule)
+    {
+        sessionState.Database = databaseModule.CreateWorkspaceState();
+    }
 }
 
 static void RenderWorkspace(OfficeSuite suite, IOfficeModule module, ModuleScreen screen, string status)
@@ -318,9 +333,12 @@ static bool TryBuildCommandScreen(
         {
             DatabaseModule databaseModule => commandParts[0].ToLowerInvariant() switch
             {
-                "open" => databaseModule.BuildTableScreen(commandParts[1]),
-                "edit" => databaseModule.BuildFormScreen(commandParts[1]),
-                "run" => databaseModule.BuildReportScreen(commandParts[1]),
+                "open" => databaseModule.BuildTableScreen(sessionState.Database, commandParts[1]),
+                "edit" => databaseModule.BuildFormScreen(sessionState.Database, commandParts[1]),
+                "run" => databaseModule.BuildReportScreen(sessionState.Database, commandParts[1]),
+                "find" => HandleDatabaseFind(databaseModule, sessionState, commandParts[1]),
+                "append" => HandleDatabaseAppend(databaseModule, sessionState, commandParts[1], out persistState),
+                "update" => HandleDatabaseUpdate(databaseModule, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             SpreadsheetModule spreadsheet => commandParts[0].ToLowerInvariant() switch
@@ -397,6 +415,52 @@ static ModuleScreen HandleSpreadsheetSet(
     sessionState.Spreadsheet.SetQuarter(parts[0], value);
     persistState = true;
     return module.BuildHomeScreen(workspace, sessionState.Spreadsheet);
+}
+
+static ModuleScreen HandleDatabaseFind(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    string argument)
+{
+    var parts = argument.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2)
+    {
+        throw new InvalidOperationException("Usage: find CUSTOMERS Bremen");
+    }
+
+    return module.BuildSearchScreen(sessionState.Database, parts[0], parts[1]);
+}
+
+static ModuleScreen HandleDatabaseAppend(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    string argument,
+    out bool persistState)
+{
+    var parts = argument.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2)
+    {
+        throw new InvalidOperationException("Usage: append CUSTOMERS Id=C-1004;Company=...;City=...;Tier=A");
+    }
+
+    persistState = true;
+    return module.AppendRecord(sessionState.Database, parts[0], parts[1]);
+}
+
+static ModuleScreen HandleDatabaseUpdate(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    string argument,
+    out bool persistState)
+{
+    var parts = argument.Split(' ', 4, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 4)
+    {
+        throw new InvalidOperationException("Usage: update CUSTOMERS C-1001 City Hannover");
+    }
+
+    persistState = true;
+    return module.UpdateRecord(sessionState.Database, parts[0], parts[1], parts[2], parts[3]);
 }
 
 static ModuleScreen HandleWordNew(
