@@ -1,65 +1,153 @@
 # SPI Open Access Retro
 
-Freie Retro-Reimplementation eines historischen integrierten Office-Pakets im Stil von SPI Open Access.
+A public retro reimplementation of a classic integrated office suite, rebuilt as a DOS-style text-mode application in modern .NET.
 
-Wichtig:
-- Dieses Repository ist ein eigenstaendiges Community-Projekt.
-- Es steht in keiner Verbindung zum urspruenglichen Hersteller.
-- Historische Produktnamen dienen nur zur Einordnung und Kompatibilitaetsbeschreibung.
+This project is aimed at:
 
-Die aktuelle Version liefert einen lauffaehigen Textmodus-Host mit separaten Modulen fuer:
+- retro software preservation
+- historical UI recreation
+- office-suite experimentation
+- database/forms/reporting workflows
+- scripting-driven business applications
 
-- Desktop-Datenbank
-- Tabellenkalkulation
-- Textverarbeitung
-- Kommunikation
-- Mail
-- Reporting
-- PRO-inspirierte Programmierung
+It is not affiliated with the original vendor. Historic product names are used only for reference, compatibility goals, and preservation context.
 
-## Starten
+## Why This Project Stands Out
+
+Most retro-inspired projects stop at visuals. This one is building an actual modular office environment with a shared shell, persistent workspace state, and feature-specific modules that behave like a real business application.
+
+Current highlights:
+
+- DOS-style full-screen shell with module tabs, status bars, and command workflow
+- persistent session state across app restarts
+- editable database tables with search, append, and update commands
+- interactive spreadsheet state with recalculation and scenario-style commands
+- editable word-processing draft state with preview
+- editable internal mail draft workflow
+- reporting, communications, and scripting modules with dedicated operational views
+- automated tests covering module registration, command screens, persistence, and data workflows
+
+## Modules
+
+- `Data`: desktop database, forms, reports, search, append, update
+- `Calc`: spreadsheet calculations, goal-seek-style scenarios, print area preview
+- `Word`: document draft, preview, merge-oriented workflow
+- `Mail`: inbox preview, message open, draft composition, routing rules
+- `Comm`: dial, file send, capture session views
+- `Rpt`: run, schedule, and design reporting workflows
+- `Prog`: PRO-inspired scripting runtime, variable watch, compile/run views
+
+## Screenshots
+
+The application is designed to look and feel like a late DOS business suite inside a terminal window.
+
+Recommended next step for GitHub:
+
+1. capture a few terminal screenshots
+2. add them to a `docs/` or `.github/assets/` folder
+3. embed them here near the top of the README
+
+That will materially improve click-through and credibility on GitHub.
+
+## Quick Start
+
+Run the app:
 
 ```powershell
 dotnet run --project .\src\SpiOpenAccess.App
 ```
 
-Einzelnes Modul direkt anzeigen:
+Open a module directly:
 
 ```powershell
 dotnet run --project .\src\SpiOpenAccess.App -- db
 ```
 
-Tests:
+Run the test suite:
 
 ```powershell
 dotnet test .\SpiOpenAccess.sln
 ```
 
-## Architektur
+## Example Commands
 
-- `src/SpiOpenAccess.Core`: Kernabstraktionen, Workspace und Suite-Modell
-- `src/SpiOpenAccess.Infrastructure`: Suite-Zusammenbau und Default-Workspace
-- `src/SpiOpenAccess.Modules.*`: Fachmodule fuer das Office-Paket
-- `tests/SpiOpenAccess.Tests`: Basistests fuer Registrierung und Kernlogik
+Inside the app:
 
-## Projektziel
+```text
+menu
+use sheet
+set Q1 190000
+recalc
+use word
+new letter
+title Sales Letter
+type Please review the attached quote.
+use mail
+compose
+to FINANCE
+subject Cash status
+body Need current cash figures.
+use db
+find CUSTOMERS Bremen
+append CUSTOMERS Id=C-1004;Company=Retro Works;City=Berlin;Tier=B
+update CUSTOMERS C-1004 City Leipzig
+```
 
-Das Ziel ist kein moderner Office-Klon, sondern eine oeffentliche Retro-Reimplementation mit:
+## Architecture
 
-- DOS-aehnlicher Bedienoberflaeche
-- Datenbank-, Formular- und Reporting-Kern
-- Tabellenkalkulation, Textverarbeitung, Mail und Kommunikation
-- PRO-inspirierter Skriptfaehigkeit
-- schrittweiser historischer Atmosphaere statt rein moderner UI
+- `src/SpiOpenAccess.App`: shell, session handling, persistence, command routing
+- `src/SpiOpenAccess.Core`: shared abstractions and workspace state models
+- `src/SpiOpenAccess.Infrastructure`: suite composition and default workspace setup
+- `src/SpiOpenAccess.Modules.*`: functional office modules
+- `tests/SpiOpenAccess.Tests`: automated tests for core behaviors and command flows
 
-## Veroeffentlichung
+## Current State
 
-Geeignet fuer ein oeffentliches GitHub-Repository als Retro-/Preservation-Projekt. Vor einer breiteren Veroeffentlichung sollten originale Marken, Assets, Hilfetexte und Binardaten des historischen Produkts nicht unbesehen uebernommen werden.
+This repository is already more than a visual prototype, but it is not yet a full historical clone.
 
-## Naechste Ausbaustufen
+What exists today:
 
-- echte Dateiformate fuer Tabellen, Dokumente und Reports
-- persistente PRO-Laufzeit mit Parser/AST/VM
-- Formular- und Maskendesigner
-- Druckspooler und Netzwerk-/Locking-Modell
-- Mailbox-Store, Kommunikationsadapter und Batch-Ausfuehrung
+- a coherent retro shell
+- persistent workspace state
+- cross-module command handling
+- editable state in multiple modules
+- deterministic seeded data
+- green automated tests
+
+What still needs to grow:
+
+- true cursor-driven editing with `Console.ReadKey`
+- stricter 80x25 layout behavior
+- popup dialogs and menu trees
+- file-based document/workbook/mailbox management
+- deeper report engine logic
+- a larger PRO runtime with parser/AST/VM
+- richer database CRUD and navigation
+
+## Open Source Position
+
+This repository is intended to be publishable on GitHub as an English-language retro software project.
+
+Please do not contribute:
+
+- original proprietary source code
+- original proprietary binaries
+- copied historical help files or artwork
+- trademark-sensitive assets presented as if they were official
+
+## Contributing
+
+Contributions are welcome, especially around:
+
+- retro UI fidelity
+- terminal UX
+- module behavior
+- persistence
+- testing
+- historical workflow research
+
+See [CONTRIBUTING.md](C:/tmp/spiopenaccess/CONTRIBUTING.md).
+
+## License
+
+Released under the MIT License. See [LICENSE](C:/tmp/spiopenaccess/LICENSE).

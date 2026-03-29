@@ -7,7 +7,7 @@ public sealed class WordProcessingModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "word",
         "Word Processor",
-        "Dokumente, Formatvorlagen, Serienbriefe und Drucklayout.",
+        "Documents, styles, mail merge, and print layout.",
         "Documents",
         ["Documents", "Styles", "Merge Fields", "Print Layout"]);
 
@@ -40,7 +40,7 @@ public sealed class WordProcessingModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "New Letter",
-            "Neues Dokument auf Basis einer Vorlage.",
+            "Create a new document from a template.",
             new[]
             {
                 $"Document         : {state.Title}",
@@ -57,7 +57,7 @@ public sealed class WordProcessingModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Mail Merge",
-            "Serienbriefvorschau mit Datenbankfeldern.",
+            "Mail merge preview using database fields.",
             new[]
             {
                 "Source form      : CUSTOMER_CARD",
@@ -74,7 +74,7 @@ public sealed class WordProcessingModule : IOfficeModule
         var previewLines = state.Lines.Take(5).Select(line => $"  {line}").ToArray();
         return ModuleScreen.Create(
             "Print Preview",
-            "Seitenvorschau des aktiven Dokuments.",
+            "Page preview of the active document.",
             new[]
             {
                 $"Page             : {page}",

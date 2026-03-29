@@ -14,7 +14,7 @@ public sealed class MailModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "mail",
         "Mail",
-        "Lokale Mailboxen, Ordner, Adressbuch und interne Nachrichten.",
+        "Local mailboxes, folders, address book, and internal messaging.",
         "Messaging",
         ["Inbox", "Folders", "Address Book", "Routing"]);
 
@@ -52,7 +52,7 @@ public sealed class MailModule : IOfficeModule
 
         return ModuleScreen.Create(
             $"Message {message.Id}",
-            "Nachrichtenansicht der lokalen Mailbox.",
+            "Message view for the local mailbox.",
             new[]
             {
                 $"From             : {message.Sender}",
@@ -70,7 +70,7 @@ public sealed class MailModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Compose Message",
-            "Neue interne Nachricht.",
+            "Compose a new internal message.",
             new[]
             {
                 $"From             : {workspace.Owner}@{workspace.Name.ToLowerInvariant()}.lan",
@@ -87,7 +87,7 @@ public sealed class MailModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Routing Rules",
-            "Automatische Verteilung und Ordnerregeln.",
+            "Automatic routing and folder rules.",
             new[]
             {
                 "Rule 1           : Finance -> Action",

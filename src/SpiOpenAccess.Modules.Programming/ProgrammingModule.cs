@@ -16,7 +16,7 @@ public sealed class ProgrammingModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "pro",
         "Programming",
-        "PRO-kompatible Skriptoberflaeche fuer Automatisierung und Datenlogik.",
+        "PRO-inspired scripting surface for automation and data logic.",
         "Automation",
         ["Interpreter", "Variables", "Expressions", "Batch Jobs"]);
 
@@ -55,7 +55,7 @@ public sealed class ProgrammingModule : IOfficeModule
 
         return ModuleScreen.Create(
             $"Run {programName}",
-            "Ausfuehrung eines PRO-inspirierten Programms.",
+            "Execute a PRO-inspired program.",
             content,
             ["list variables", "compile nightly.pro", "back"]);
     }
@@ -70,7 +70,7 @@ public sealed class ProgrammingModule : IOfficeModule
 
         return ModuleScreen.Create(
             "Variable Watch",
-            "Laufzeitstatus der Skriptvariablen.",
+            "Runtime watch view for script variables.",
             content,
             ["run sample.pro", "compile nightly.pro", "back"]);
     }
@@ -79,7 +79,7 @@ public sealed class ProgrammingModule : IOfficeModule
     {
         return ModuleScreen.Create(
             $"Compile {programName}",
-            "Vorbereitung eines Batch-Programms.",
+            "Compile and prepare a batch program.",
             new[]
             {
                 $"Source           : {programName}",

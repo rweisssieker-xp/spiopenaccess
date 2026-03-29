@@ -19,7 +19,7 @@ public sealed class DatabaseModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "db",
         "Desktop Database",
-        "Relationale Tabellen, Masken, Indizes und Mehrbenutzerbetrieb.",
+        "Relational tables, forms, indexes, and shared multi-user workflows.",
         "Data",
         ["Tables", "Forms", "Reports", "Locking", "Import/Export"]);
 
@@ -126,7 +126,7 @@ public sealed class DatabaseModule : IOfficeModule
 
         return ModuleScreen.Create(
             $"Table {table.Name}",
-            "Tabellenansicht mit Datensatzvorschau.",
+            "Table view with live record preview.",
             content,
             [$"find {table.Name} <term>", $"append {table.Name} field=value;...", $"update {table.Name} key field value"]);
     }
@@ -162,7 +162,7 @@ public sealed class DatabaseModule : IOfficeModule
 
         return ModuleScreen.Create(
             $"Form {form.Name}",
-            "Maskendefinition mit gebundenen Feldern.",
+            "Form definition with bound fields.",
             content,
             [$"open {form.Table}", $"run {GetPrimaryReportForTable(form.Table)?.Name ?? "REPORT"}", "back"]);
     }
@@ -197,7 +197,7 @@ public sealed class DatabaseModule : IOfficeModule
 
         return ModuleScreen.Create(
             $"Report {report.Name}",
-            "Reportdefinition mit einfacher Gruppen-Vorschau.",
+            "Report definition with grouped preview output.",
             content,
             [$"open {report.Table}", $"edit {GetPrimaryFormForTable(report.Table)?.Name ?? "FORM"}", "back"]);
     }
@@ -234,7 +234,7 @@ public sealed class DatabaseModule : IOfficeModule
 
         return ModuleScreen.Create(
             $"Find {table.Name}",
-            "Suche ueber sichtbare Tabellenfelder.",
+            "Search across visible table fields.",
             content,
             [$"open {table.Name}", $"append {table.Name} field=value;...", "back"]);
     }

@@ -8,7 +8,7 @@ public sealed class SpreadsheetModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "sheet",
         "Spreadsheet",
-        "Tabellen, Formeln, Szenarien und Ausdrucke.",
+        "Worksheets, formulas, scenarios, and print previews.",
         "Analysis",
         ["Worksheets", "Formulas", "Charts", "What-if"]);
 
@@ -50,7 +50,7 @@ public sealed class SpreadsheetModule : IOfficeModule
 
         return ModuleScreen.Create(
             "Recalc Worksheet",
-            "Neuberechnung der aktiven Arbeitsmappe.",
+            "Recalculate the active workbook.",
             new[]
             {
                 $"Workbook         : {workspace.Name}-Financials",
@@ -68,7 +68,7 @@ public sealed class SpreadsheetModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Goal Seek",
-            "Szenarioanalyse fuer Zielwerte.",
+            "Scenario analysis for target values.",
             new[]
             {
                 "Objective cell    : Margin",
@@ -85,7 +85,7 @@ public sealed class SpreadsheetModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Print Area",
-            "Druckvorschau fuer den ausgewaehlten Zellbereich.",
+            "Print preview for the selected cell range.",
             new[]
             {
                 $"Range            : {area}",

@@ -7,7 +7,7 @@ public sealed class ReportingModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "report",
         "Reporting",
-        "Listen, Gruppierungen, Summenlaeufe und Druckaufbereitung.",
+        "Listings, grouping, batch output, and print preparation.",
         "Output",
         ["Layouts", "Grouping", "Batch Run", "Printer Targets"]);
 
@@ -34,7 +34,7 @@ public sealed class ReportingModule : IOfficeModule
     {
         return ModuleScreen.Create(
             $"Run {reportName}",
-            "Batch-Ausfuehrung eines Reports.",
+            "Batch execution for a report definition.",
             new[]
             {
                 $"Definition       : {reportName}",
@@ -51,7 +51,7 @@ public sealed class ReportingModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Batch Schedule",
-            "Zeitplanung fuer Report-Laeufe.",
+            "Schedule recurring report runs.",
             new[]
             {
                 $"Queue            : {queueName}",
@@ -67,7 +67,7 @@ public sealed class ReportingModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Report Designer",
-            "Layoutdefinition fuer Listen und Auswertungen.",
+            "Layout definition for reports and listings.",
             new[]
             {
                 $"Layout           : {reportName}",

@@ -7,7 +7,7 @@ public sealed class CommunicationsModule : IOfficeModule
     public ModuleInfo Info { get; } = new(
         "comm",
         "Communications",
-        "Terminalprofile, Dateitransfer und Skriptsteuerung.",
+        "Terminal profiles, file transfer, and scripted communication.",
         "Connectivity",
         ["Terminal", "Transfer", "Profiles", "Automation"]);
 
@@ -34,7 +34,7 @@ public sealed class CommunicationsModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Dial Session",
-            "Aufbau einer Kommunikationssitzung.",
+            "Communication session setup.",
             new[]
             {
                 $"Target           : {target}",
@@ -51,7 +51,7 @@ public sealed class CommunicationsModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "File Transfer",
-            "Dateiuebertragung ueber aktives Kommunikationsprofil.",
+            "File transfer over the active communications profile.",
             new[]
             {
                 $"Filename         : {fileName}",
@@ -67,7 +67,7 @@ public sealed class CommunicationsModule : IOfficeModule
     {
         return ModuleScreen.Create(
             "Capture Buffer",
-            "Protokolliert eingehende Daten in eine Mitschnittdatei.",
+            "Capture incoming data into a session log.",
             new[]
             {
                 $"Capture mode     : {mode}",

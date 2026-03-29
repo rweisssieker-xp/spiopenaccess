@@ -35,6 +35,6 @@ public static class OfficeSuiteFactory
             new ProgrammingModule()
         };
 
-        return new OfficeSuite("SPI Open Access Rebuild", "0.1.0", workspace, modules);
+        return new OfficeSuite("SPI Open Access Retro", "0.1.0", workspace, modules);
     }
 }
