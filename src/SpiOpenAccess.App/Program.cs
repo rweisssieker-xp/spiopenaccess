@@ -7,24 +7,27 @@ using SpiOpenAccess.Modules.Programming;
 using SpiOpenAccess.Modules.Reporting;
 using SpiOpenAccess.Modules.Spreadsheet;
 using SpiOpenAccess.Modules.WordProcessing;
+using SpiOpenAccess.App;
 
 const int FrameWidth = 80;
 const int VisibleBodyLines = 17;
 var suite = OfficeSuiteFactory.CreateDefault();
+var sessionStore = new AppSessionStore(Directory.GetCurrentDirectory());
+var sessionState = sessionStore.Load();
 
 if (args.Length > 0)
 {
     var selector = string.Join(' ', args);
-    RenderSelectedModule(suite, selector);
+    RenderSelectedModule(suite, selector, sessionState);
     return;
 }
 
-RenderShell(suite);
+RenderShell(suite, sessionState, sessionStore);
 
-static void RenderShell(OfficeSuite suite)
+static void RenderShell(OfficeSuite suite, AppSessionState sessionState, AppSessionStore sessionStore)
 {
     var activeModule = suite.FindModule("db") ?? suite.Modules[0];
-    var currentScreen = activeModule.BuildHomeScreen(suite.Workspace);
+    var currentScreen = BuildHomeScreen(activeModule, suite.Workspace, sessionState);
     var status = "F1 Menu  F2 Modules  F3 Home  F10 Exit";
 
     while (true)
@@ -51,7 +54,7 @@ static void RenderShell(OfficeSuite suite)
             if (selectedModule is not null)
             {
                 activeModule = selectedModule;
-                currentScreen = activeModule.BuildHomeScreen(suite.Workspace);
+                currentScreen = BuildHomeScreen(activeModule, suite.Workspace, sessionState);
                 status = $"Switched to {activeModule.Info.DisplayName}.";
             }
             else
@@ -65,15 +68,20 @@ static void RenderShell(OfficeSuite suite)
         if (TryResolveModuleSelection(suite, input, out var switchedModule))
         {
             activeModule = switchedModule!;
-            currentScreen = activeModule.BuildHomeScreen(suite.Workspace);
+            currentScreen = BuildHomeScreen(activeModule, suite.Workspace, sessionState);
             status = $"Switched to {activeModule.Info.DisplayName}.";
             continue;
         }
 
-        if (TryBuildCommandScreen(activeModule, suite.Workspace, input, out var commandScreen, out var error))
+        if (TryBuildCommandScreen(activeModule, suite.Workspace, sessionState, input, out var commandScreen, out var error, out var persistState))
         {
             currentScreen = commandScreen!;
             status = $"Executed: {input}";
+            if (persistState)
+            {
+                sessionStore.Save(sessionState);
+                status += " (saved)";
+            }
             continue;
         }
 
@@ -81,7 +89,7 @@ static void RenderShell(OfficeSuite suite)
     }
 }
 
-static void RenderSelectedModule(OfficeSuite suite, string selector)
+static void RenderSelectedModule(OfficeSuite suite, string selector, AppSessionState sessionState)
 {
     var module = suite.FindModule(selector);
     if (module is null)
@@ -94,8 +102,19 @@ static void RenderSelectedModule(OfficeSuite suite, string selector)
     RenderWorkspace(
         suite,
         module,
-        module.BuildHomeScreen(suite.Workspace),
+        BuildHomeScreen(module, suite.Workspace, sessionState),
         "Direct module view.");
+}
+
+static ModuleScreen BuildHomeScreen(IOfficeModule module, OfficeWorkspace workspace, AppSessionState sessionState)
+{
+    return module switch
+    {
+        SpreadsheetModule spreadsheet => spreadsheet.BuildHomeScreen(workspace, sessionState.Spreadsheet),
+        WordProcessingModule word => word.BuildHomeScreen(workspace, sessionState.Word),
+        MailModule mail => mail.BuildHomeScreen(workspace, sessionState.Mail),
+        _ => module.BuildHomeScreen(workspace)
+    };
 }
 
 static void RenderWorkspace(OfficeSuite suite, IOfficeModule module, ModuleScreen screen, string status)
@@ -240,17 +259,20 @@ static bool TryResolveModuleSelection(OfficeSuite suite, string input, out IOffi
 static bool TryBuildCommandScreen(
     IOfficeModule activeModule,
     OfficeWorkspace workspace,
+    AppSessionState sessionState,
     string input,
     out ModuleScreen? screen,
-    out string? error)
+    out string? error,
+    out bool persistState)
 {
     screen = null;
     error = null;
+    persistState = false;
 
     if (string.Equals(input, "back", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(input, "home", StringComparison.OrdinalIgnoreCase))
     {
-        screen = activeModule.BuildHomeScreen(workspace);
+        screen = BuildHomeScreen(activeModule, workspace, sessionState);
         return true;
     }
 
@@ -267,9 +289,9 @@ static bool TryBuildCommandScreen(
             screen = activeModule switch
             {
                 SpreadsheetModule spreadsheet when commandParts[0].Equals("recalc", StringComparison.OrdinalIgnoreCase)
-                    => spreadsheet.BuildRecalcScreen(workspace),
+                    => spreadsheet.BuildRecalcScreen(workspace, sessionState.Spreadsheet),
                 MailModule mail when commandParts[0].Equals("compose", StringComparison.OrdinalIgnoreCase)
-                    => mail.BuildComposeScreen(workspace),
+                    => mail.BuildComposeScreen(workspace, sessionState.Mail),
                 MailModule mail when string.Equals(commandParts[0], "route", StringComparison.OrdinalIgnoreCase)
                     => mail.BuildRoutingRulesScreen(),
                 CommunicationsModule communications when commandParts[0].Equals("capture", StringComparison.OrdinalIgnoreCase)
@@ -305,19 +327,25 @@ static bool TryBuildCommandScreen(
             {
                 "goal-seek" => spreadsheet.BuildGoalSeekScreen(commandParts[1]),
                 "print" => spreadsheet.BuildPrintAreaScreen(commandParts[1]),
+                "set" => HandleSpreadsheetSet(spreadsheet, workspace, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             WordProcessingModule word => commandParts[0].ToLowerInvariant() switch
             {
-                "new" => word.BuildNewLetterScreen(workspace),
+                "new" => HandleWordNew(word, workspace, sessionState, out persistState),
                 "merge" => word.BuildMergeScreen(),
-                "preview" => word.BuildPreviewScreen(commandParts[1]),
+                "preview" => word.BuildPreviewScreen(commandParts[1], sessionState.Word),
+                "type" => HandleWordType(word, workspace, sessionState, commandParts[1], out persistState),
+                "title" => HandleWordTitle(word, workspace, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             MailModule mail => commandParts[0].ToLowerInvariant() switch
             {
                 "open" => mail.BuildMessageScreen(commandParts[1]),
                 "route" => mail.BuildRoutingRulesScreen(),
+                "to" => HandleMailTo(mail, workspace, sessionState, commandParts[1], out persistState),
+                "subject" => HandleMailSubject(mail, workspace, sessionState, commandParts[1], out persistState),
+                "body" => HandleMailBody(mail, workspace, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             CommunicationsModule communications => commandParts[0].ToLowerInvariant() switch
@@ -351,6 +379,103 @@ static bool TryBuildCommandScreen(
     }
 
     return screen is not null;
+}
+
+static ModuleScreen HandleSpreadsheetSet(
+    SpreadsheetModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string argument,
+    out bool persistState)
+{
+    var parts = argument.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2 || !decimal.TryParse(parts[1], out var value))
+    {
+        throw new InvalidOperationException("Usage: set Q1 190000");
+    }
+
+    sessionState.Spreadsheet.SetQuarter(parts[0], value);
+    persistState = true;
+    return module.BuildHomeScreen(workspace, sessionState.Spreadsheet);
+}
+
+static ModuleScreen HandleWordNew(
+    WordProcessingModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    out bool persistState)
+{
+    sessionState.Word.Title = $"{workspace.Name} Letter Draft";
+    sessionState.Word.Template = "Executive Letter";
+    sessionState.Word.Lines =
+    [
+        "Dear customer,",
+        "thank you for your continued business.",
+        "Kind regards,",
+        workspace.Owner
+    ];
+    persistState = true;
+    return module.BuildNewLetterScreen(workspace, sessionState.Word);
+}
+
+static ModuleScreen HandleWordType(
+    WordProcessingModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string text,
+    out bool persistState)
+{
+    sessionState.Word.Lines.Add(text);
+    persistState = true;
+    return module.BuildNewLetterScreen(workspace, sessionState.Word);
+}
+
+static ModuleScreen HandleWordTitle(
+    WordProcessingModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string title,
+    out bool persistState)
+{
+    sessionState.Word.Title = title;
+    persistState = true;
+    return module.BuildNewLetterScreen(workspace, sessionState.Word);
+}
+
+static ModuleScreen HandleMailTo(
+    MailModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string recipient,
+    out bool persistState)
+{
+    sessionState.Mail.To = recipient;
+    persistState = true;
+    return module.BuildComposeScreen(workspace, sessionState.Mail);
+}
+
+static ModuleScreen HandleMailSubject(
+    MailModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string subject,
+    out bool persistState)
+{
+    sessionState.Mail.Subject = subject;
+    persistState = true;
+    return module.BuildComposeScreen(workspace, sessionState.Mail);
+}
+
+static ModuleScreen HandleMailBody(
+    MailModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string body,
+    out bool persistState)
+{
+    sessionState.Mail.Body = body;
+    persistState = true;
+    return module.BuildComposeScreen(workspace, sessionState.Mail);
 }
 
 static string Fit(string text, int width)

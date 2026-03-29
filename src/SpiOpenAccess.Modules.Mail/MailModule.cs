@@ -20,11 +20,18 @@ public sealed class MailModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
+        return BuildHomeScreen(workspace, new MailWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, MailWorkspaceState draft)
+    {
         var content = new List<string>
         {
             $"Mailbox          : {workspace.Owner}@{workspace.Name.ToLowerInvariant()}.lan",
             $"Unread           : {_inbox.Count(message => message.IsUnread)}",
             "Folders          : Inbox, Action, Archive, Outbox",
+            $"Draft to         : {draft.To}",
+            $"Draft subject    : {draft.Subject}",
             "Inbox preview    :"
         };
         content.AddRange(_inbox.Select(message =>
@@ -59,7 +66,7 @@ public sealed class MailModule : IOfficeModule
             ["compose", "route rules", "back"]);
     }
 
-    public ModuleScreen BuildComposeScreen(OfficeWorkspace workspace)
+    public ModuleScreen BuildComposeScreen(OfficeWorkspace workspace, MailWorkspaceState draft)
     {
         return ModuleScreen.Create(
             "Compose Message",
@@ -67,13 +74,13 @@ public sealed class MailModule : IOfficeModule
             new[]
             {
                 $"From             : {workspace.Owner}@{workspace.Name.ToLowerInvariant()}.lan",
-                "To               : SALES",
+                $"To               : {draft.To}",
                 "Cc               :",
-                "Subject          : Weekly pipeline update",
+                $"Subject          : {draft.Subject}",
                 "Attachment       : none",
-                "Draft status     : unsent"
+                $"Draft body       : {draft.Body}"
             },
-            ["open OPS-142", "route rules", "back"]);
+            ["to <recipient>", "subject <text>", "body <text>"]);
     }
 
     public ModuleScreen BuildRoutingRulesScreen()

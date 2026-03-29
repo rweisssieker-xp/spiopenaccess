@@ -13,15 +13,20 @@ public sealed class WordProcessingModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
+        return BuildHomeScreen(workspace, new WordProcessorWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, WordProcessorWorkspaceState state)
+    {
         var content = new[]
         {
-            $"Document         : {workspace.Name} Proposal",
-            "Template         : Executive Letter",
-            "Pages            : 4",
+            $"Document         : {state.Title}",
+            $"Template         : {state.Template}",
+            $"Pages            : {Math.Max(1, (state.Lines.Count + 24) / 25)}",
             "Styles           : Body, Heading 1, Heading 2, Signature",
             "Merge fields     : Company, Contact, DueDate, NetAmount",
             "Print settings   : A4 portrait, 2.5 cm margins",
-            "Review           : Spellcheck dictionary loaded"
+            $"Review           : {state.Lines.Count} content lines loaded"
         };
 
         return ModuleScreen.Create(
@@ -31,21 +36,21 @@ public sealed class WordProcessingModule : IOfficeModule
             ["new letter", "merge customers", "preview page 1"]);
     }
 
-    public ModuleScreen BuildNewLetterScreen(OfficeWorkspace workspace)
+    public ModuleScreen BuildNewLetterScreen(OfficeWorkspace workspace, WordProcessorWorkspaceState state)
     {
         return ModuleScreen.Create(
             "New Letter",
             "Neues Dokument auf Basis einer Vorlage.",
             new[]
             {
-                $"Document         : {workspace.Name} Letter Draft",
-                "Template         : Executive Letter",
-                "Cursor           : Page 1, Line 1, Col 1",
+                $"Document         : {state.Title}",
+                $"Template         : {state.Template}",
+                $"Cursor           : Page 1, Line {Math.Max(1, state.Lines.Count)}, Col 1",
                 "Default style    : Body",
                 "Insert blocks    : Address, Subject, Greeting, Signature",
-                "Status           : Draft created"
+                $"Status           : {state.Lines.Count} lines in draft"
             },
-            ["merge customers", "preview page 1", "back"]);
+            ["type <text>", "title <text>", "preview page 1"]);
     }
 
     public ModuleScreen BuildMergeScreen()
@@ -64,8 +69,9 @@ public sealed class WordProcessingModule : IOfficeModule
             ["new letter", "preview page 1", "back"]);
     }
 
-    public ModuleScreen BuildPreviewScreen(string page)
+    public ModuleScreen BuildPreviewScreen(string page, WordProcessorWorkspaceState state)
     {
+        var previewLines = state.Lines.Take(5).Select(line => $"  {line}").ToArray();
         return ModuleScreen.Create(
             "Print Preview",
             "Seitenvorschau des aktiven Dokuments.",
@@ -73,10 +79,10 @@ public sealed class WordProcessingModule : IOfficeModule
             {
                 $"Page             : {page}",
                 "Zoom             : Full page",
-                "Header           : Executive Letter",
-                "Body lines       : 31",
+                $"Header           : {state.Template}",
+                $"Body lines       : {state.Lines.Count}",
                 "Footer           : Confidential"
-            },
+            }.Concat(previewLines),
             ["new letter", "merge customers", "back"]);
     }
 }

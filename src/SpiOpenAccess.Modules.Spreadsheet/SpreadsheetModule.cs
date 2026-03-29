@@ -5,8 +5,6 @@ namespace SpiOpenAccess.Modules.Spreadsheet;
 
 public sealed class SpreadsheetModule : IOfficeModule
 {
-    private readonly decimal[] _quarterlyRevenue = [182_500m, 204_400m, 198_225m, 227_000m];
-
     public ModuleInfo Info { get; } = new(
         "sheet",
         "Spreadsheet",
@@ -16,15 +14,21 @@ public sealed class SpreadsheetModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
-        var total = _quarterlyRevenue.Sum();
-        var average = _quarterlyRevenue.Average();
+        return BuildHomeScreen(workspace, new SpreadsheetWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, SpreadsheetWorkspaceState state)
+    {
+        var revenue = state.ToArray();
+        var total = revenue.Sum();
+        var average = revenue.Average();
 
         var content = new[]
         {
             $"Workbook         : {workspace.Name}-Financials",
             "Sheet            : FY26 Revenue",
             $"Cells in use     : {12 * 8}",
-            $"Q1..Q4           : {string.Join(" | ", _quarterlyRevenue.Select(value => value.ToString("N0", CultureInfo.InvariantCulture)))}",
+            $"Q1..Q4           : {string.Join(" | ", revenue.Select(value => value.ToString("N0", CultureInfo.InvariantCulture)))}",
             $"Total            : {total.ToString("N0", CultureInfo.InvariantCulture)}",
             $"Average quarter  : {average.ToString("N2", CultureInfo.InvariantCulture)}",
             "Named ranges     : RevenueQ1, RevenueQ2, RevenueQ3, RevenueQ4",
@@ -38,10 +42,11 @@ public sealed class SpreadsheetModule : IOfficeModule
             ["recalc", "goal-seek margin 18", "print area A1:H56"]);
     }
 
-    public ModuleScreen BuildRecalcScreen(OfficeWorkspace workspace)
+    public ModuleScreen BuildRecalcScreen(OfficeWorkspace workspace, SpreadsheetWorkspaceState state)
     {
-        var total = _quarterlyRevenue.Sum();
-        var margins = _quarterlyRevenue.Select(value => Math.Round(value / total * 100m, 2)).ToArray();
+        var revenue = state.ToArray();
+        var total = revenue.Sum();
+        var margins = revenue.Select(value => Math.Round(value / total * 100m, 2)).ToArray();
 
         return ModuleScreen.Create(
             "Recalc Worksheet",

@@ -20,8 +20,9 @@ public sealed class ModuleCommandScreenTests
     public void Spreadsheet_BuildsOperationalScreens()
     {
         var module = new SpreadsheetModule();
+        var state = new SpreadsheetWorkspaceState();
 
-        var recalc = module.BuildRecalcScreen(Workspace);
+        var recalc = module.BuildRecalcScreen(Workspace, state);
         var goalSeek = module.BuildGoalSeekScreen("margin 18");
         var printArea = module.BuildPrintAreaScreen("area A1:H56");
 
@@ -34,10 +35,11 @@ public sealed class ModuleCommandScreenTests
     public void Word_BuildsEditingScreens()
     {
         var module = new WordProcessingModule();
+        var state = new WordProcessorWorkspaceState();
 
-        Assert.Contains(module.BuildNewLetterScreen(Workspace).Content, line => line.Contains("Draft created", StringComparison.Ordinal));
+        Assert.Contains(module.BuildNewLetterScreen(Workspace, state).Content, line => line.Contains("lines in draft", StringComparison.Ordinal));
         Assert.Contains(module.BuildMergeScreen().Content, line => line.Contains("Records queued", StringComparison.Ordinal));
-        Assert.Contains(module.BuildPreviewScreen("page 1").Content, line => line.Contains("Page             : page 1", StringComparison.Ordinal));
+        Assert.Contains(module.BuildPreviewScreen("page 1", state).Content, line => line.Contains("Page             : page 1", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -47,8 +49,9 @@ public sealed class ModuleCommandScreenTests
         var communications = new CommunicationsModule();
         var reporting = new ReportingModule();
         var programming = new ProgrammingModule();
+        var mailState = new MailWorkspaceState();
 
-        Assert.Contains(mail.BuildComposeScreen(Workspace).Content, line => line.Contains("Weekly pipeline update", StringComparison.Ordinal));
+        Assert.Contains(mail.BuildComposeScreen(Workspace, mailState).Content, line => line.Contains("Weekly pipeline update", StringComparison.Ordinal));
         Assert.Contains(mail.BuildRoutingRulesScreen().Content, line => line.Contains("Rule 1", StringComparison.Ordinal));
         Assert.Contains(mail.BuildMessageScreen("OPS-142").Content, line => line.Contains("Quarter close checklist", StringComparison.Ordinal));
 

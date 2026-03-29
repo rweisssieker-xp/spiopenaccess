@@ -12,3 +12,4 @@ TestResults/
 *.log
 artifacts/
 coverage/
+.retro-state/

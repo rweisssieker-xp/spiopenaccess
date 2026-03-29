@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SpiOpenAccess.Core\SpiOpenAccess.Core.csproj" />
+    <ProjectReference Include="..\..\src\SpiOpenAccess.App\SpiOpenAccess.App.csproj" />
     <ProjectReference Include="..\..\src\SpiOpenAccess.Infrastructure\SpiOpenAccess.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\SpiOpenAccess.Modules.Database\SpiOpenAccess.Modules.Database.csproj" />
     <ProjectReference Include="..\..\src\SpiOpenAccess.Modules.Spreadsheet\SpiOpenAccess.Modules.Spreadsheet.csproj" />
