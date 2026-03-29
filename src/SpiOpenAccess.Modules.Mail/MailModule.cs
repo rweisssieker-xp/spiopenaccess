@@ -32,6 +32,7 @@ public sealed class MailModule : IOfficeModule
             "Folders          : Inbox, Action, Archive, Outbox",
             $"Draft to         : {draft.To}",
             $"Draft subject    : {draft.Subject}",
+            $"Sent items       : {draft.SentItems.Count}",
             "Inbox preview    :"
         };
         content.AddRange(_inbox.Select(message =>
@@ -41,7 +42,7 @@ public sealed class MailModule : IOfficeModule
             Info.DisplayName,
             Info.Summary,
             content,
-            ["open OPS-142", "compose", "route rules"]);
+            ["open OPS-142", "compose", "sent", "route rules"]);
     }
 
     public ModuleScreen BuildMessageScreen(string messageId)
@@ -80,7 +81,29 @@ public sealed class MailModule : IOfficeModule
                 "Attachment       : none",
                 $"Draft body       : {draft.Body}"
             },
-            ["to <recipient>", "subject <text>", "body <text>"]);
+            ["to <recipient>", "subject <text>", "body <text>", "send"]);
+    }
+
+    public ModuleScreen BuildSentItemsScreen(MailWorkspaceState draft)
+    {
+        var content = new List<string>
+        {
+            $"Sent count       : {draft.SentItems.Count}",
+            "Outbox history    :"
+        };
+        content.AddRange(draft.SentItems
+            .OrderByDescending(item => item.SentAt)
+            .Select(item => $"  {item.SentAt,-19} {item.To,-12} {item.Subject}"));
+        if (draft.SentItems.Count == 0)
+        {
+            content.Add("  <none>");
+        }
+
+        return ModuleScreen.Create(
+            "Sent Items",
+            "Recently sent internal messages.",
+            content,
+            ["compose", "back"]);
     }
 
     public ModuleScreen BuildRoutingRulesScreen()

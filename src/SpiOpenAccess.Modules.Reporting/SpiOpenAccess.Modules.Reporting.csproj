@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SpiOpenAccess.Core\SpiOpenAccess.Core.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Database\SpiOpenAccess.Modules.Database.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

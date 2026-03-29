@@ -1,4 +1,5 @@
 using SpiOpenAccess.Core;
+using SpiOpenAccess.Modules.Database;
 
 namespace SpiOpenAccess.Modules.Reporting;
 
@@ -44,6 +45,33 @@ public sealed class ReportingModule : IOfficeModule
                 "Output target    : PDF spool + Laser A",
                 "Status           : Completed"
             },
+            ["schedule Evening Finance", "design Revenue-City", "back"]);
+    }
+
+    public ModuleScreen BuildRunScreen(string reportName, DatabaseWorkspaceState databaseState)
+    {
+        var table = databaseState.GetTable("INVOICES");
+        var groups = table.Records
+            .GroupBy(record => record.GetValueOrDefault("Status", "<null>"))
+            .OrderBy(group => group.Key)
+            .ToArray();
+
+        var content = new List<string>
+        {
+            $"Definition       : {reportName}",
+            "Input source     : Session database state",
+            $"Rows scanned     : {table.Records.Count}",
+            $"Groups           : {groups.Length}",
+            "Preview          :"
+        };
+        content.AddRange(groups.Select(group => $"  {group.Key,-12} count={group.Count()}"));
+        content.Add("Output target    : PDF spool + Laser A");
+        content.Add("Status           : Completed");
+
+        return ModuleScreen.Create(
+            $"Run {reportName}",
+            "Batch execution for a report definition.",
+            content,
             ["schedule Evening Finance", "design Revenue-City", "back"]);
     }
 

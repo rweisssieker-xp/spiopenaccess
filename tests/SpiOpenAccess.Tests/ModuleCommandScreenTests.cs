@@ -1,5 +1,6 @@
 using SpiOpenAccess.Core;
 using SpiOpenAccess.Modules.Communications;
+using SpiOpenAccess.Modules.Database;
 using SpiOpenAccess.Modules.Mail;
 using SpiOpenAccess.Modules.Programming;
 using SpiOpenAccess.Modules.Reporting;
@@ -40,6 +41,9 @@ public sealed class ModuleCommandScreenTests
         Assert.Contains(module.BuildNewLetterScreen(Workspace, state).Content, line => line.Contains("lines in draft", StringComparison.Ordinal));
         Assert.Contains(module.BuildMergeScreen().Content, line => line.Contains("Records queued", StringComparison.Ordinal));
         Assert.Contains(module.BuildPreviewScreen("page 1", state).Content, line => line.Contains("Page             : page 1", StringComparison.Ordinal));
+
+        state.DeleteLastLine();
+        Assert.Equal(3, state.Lines.Count);
     }
 
     [Fact]
@@ -50,8 +54,11 @@ public sealed class ModuleCommandScreenTests
         var reporting = new ReportingModule();
         var programming = new ProgrammingModule();
         var mailState = new MailWorkspaceState();
+        var databaseState = new DatabaseModule(DatabaseCatalogLoader.LoadDefault()).CreateWorkspaceState();
 
         Assert.Contains(mail.BuildComposeScreen(Workspace, mailState).Content, line => line.Contains("Weekly pipeline update", StringComparison.Ordinal));
+        mailState.SentItems.Add(new MailSentItemState { To = "FINANCE", Subject = "Cash status", Body = "Need current cash figures.", SentAt = "2026-03-29 10:15:00" });
+        Assert.Contains(mail.BuildSentItemsScreen(mailState).Content, line => line.Contains("Cash status", StringComparison.Ordinal));
         Assert.Contains(mail.BuildRoutingRulesScreen().Content, line => line.Contains("Rule 1", StringComparison.Ordinal));
         Assert.Contains(mail.BuildMessageScreen("OPS-142").Content, line => line.Contains("Quarter close checklist", StringComparison.Ordinal));
 
@@ -59,7 +66,7 @@ public sealed class ModuleCommandScreenTests
         Assert.Contains(communications.BuildSendScreen("orders.dat").Content, line => line.Contains("Transfer complete", StringComparison.Ordinal));
         Assert.Contains(communications.BuildCaptureScreen("on").Content, line => line.Contains("Capture armed", StringComparison.Ordinal));
 
-        Assert.Contains(reporting.BuildRunScreen("Aging").Content, line => line.Contains("Completed", StringComparison.Ordinal));
+        Assert.Contains(reporting.BuildRunScreen("Aging", databaseState).Content, line => line.Contains("Completed", StringComparison.Ordinal));
         Assert.Contains(reporting.BuildScheduleScreen("Evening Finance").Content, line => line.Contains("Weekdays", StringComparison.Ordinal));
         Assert.Contains(reporting.BuildDesignScreen("Revenue-City").Content, line => line.Contains("Sections", StringComparison.Ordinal));
 

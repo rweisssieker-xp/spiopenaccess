@@ -34,8 +34,7 @@ static void RenderShell(OfficeSuite suite, AppSessionState sessionState, AppSess
     while (true)
     {
         RenderWorkspace(suite, activeModule, currentScreen, status);
-        Console.Write("Command> ");
-        var input = Console.ReadLine()?.Trim();
+        var input = ReadCommand(activeModule);
         if (string.IsNullOrWhiteSpace(input))
         {
             status = "No command entered.";
@@ -43,6 +42,22 @@ static void RenderShell(OfficeSuite suite, AppSessionState sessionState, AppSess
         }
 
         input = NormalizeCommandAlias(input);
+
+        if (string.Equals(input, "__NAV_LEFT__", StringComparison.Ordinal))
+        {
+            activeModule = CycleModule(suite, activeModule, -1);
+            currentScreen = BuildHomeScreen(activeModule, suite.Workspace, sessionState);
+            status = $"Switched to {activeModule.Info.DisplayName}.";
+            continue;
+        }
+
+        if (string.Equals(input, "__NAV_RIGHT__", StringComparison.Ordinal))
+        {
+            activeModule = CycleModule(suite, activeModule, 1);
+            currentScreen = BuildHomeScreen(activeModule, suite.Workspace, sessionState);
+            status = $"Switched to {activeModule.Info.DisplayName}.";
+            continue;
+        }
 
         if (IsQuit(input))
         {
@@ -210,7 +225,7 @@ static void RenderStatusBar(string status)
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.BackgroundColor = ConsoleColor.DarkBlue;
-    Console.WriteLine(Fit(" F1=Menu  F2=Modules  F3=Home  F5=Open  F6=Edit  F7=Run  F10=Exit ", FrameWidth));
+    Console.WriteLine(Fit(" F1=Menu  F2=Modules  F3=Home  F5=Open  F6=Edit  F7=Run  <- -> Tabs  F10=Exit ", FrameWidth));
     Console.ForegroundColor = ConsoleColor.Black;
     Console.BackgroundColor = ConsoleColor.Gray;
     Console.WriteLine(Fit($" Status: {status} ", FrameWidth));
@@ -307,14 +322,20 @@ static bool TryBuildCommandScreen(
                     => spreadsheet.BuildRecalcScreen(workspace, sessionState.Spreadsheet),
                 MailModule mail when commandParts[0].Equals("compose", StringComparison.OrdinalIgnoreCase)
                     => mail.BuildComposeScreen(workspace, sessionState.Mail),
+                MailModule mail when commandParts[0].Equals("send", StringComparison.OrdinalIgnoreCase)
+                    => HandleMailSend(mail, sessionState, out persistState),
+                MailModule mail when commandParts[0].Equals("sent", StringComparison.OrdinalIgnoreCase)
+                    => mail.BuildSentItemsScreen(sessionState.Mail),
                 MailModule mail when string.Equals(commandParts[0], "route", StringComparison.OrdinalIgnoreCase)
                     => mail.BuildRoutingRulesScreen(),
                 CommunicationsModule communications when commandParts[0].Equals("capture", StringComparison.OrdinalIgnoreCase)
                     => communications.BuildCaptureScreen("on"),
                 ReportingModule reporting when commandParts[0].Equals("run", StringComparison.OrdinalIgnoreCase)
-                    => reporting.BuildRunScreen("Aging"),
+                    => reporting.BuildRunScreen("Aging", sessionState.Database),
                 ProgrammingModule programming when commandParts[0].Equals("list", StringComparison.OrdinalIgnoreCase)
                     => programming.BuildVariablesScreen(),
+                WordProcessingModule word when commandParts[0].Equals("delete-line", StringComparison.OrdinalIgnoreCase)
+                    => HandleWordDeleteLine(word, workspace, sessionState, out persistState),
                 _ => null
             };
         }
@@ -339,6 +360,7 @@ static bool TryBuildCommandScreen(
                 "find" => HandleDatabaseFind(databaseModule, sessionState, commandParts[1]),
                 "append" => HandleDatabaseAppend(databaseModule, sessionState, commandParts[1], out persistState),
                 "update" => HandleDatabaseUpdate(databaseModule, sessionState, commandParts[1], out persistState),
+                "delete" => HandleDatabaseDelete(databaseModule, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             SpreadsheetModule spreadsheet => commandParts[0].ToLowerInvariant() switch
@@ -355,6 +377,7 @@ static bool TryBuildCommandScreen(
                 "preview" => word.BuildPreviewScreen(commandParts[1], sessionState.Word),
                 "type" => HandleWordType(word, workspace, sessionState, commandParts[1], out persistState),
                 "title" => HandleWordTitle(word, workspace, sessionState, commandParts[1], out persistState),
+                "delete-line" => HandleWordDeleteLine(word, workspace, sessionState, out persistState),
                 _ => null
             },
             MailModule mail => commandParts[0].ToLowerInvariant() switch
@@ -364,6 +387,7 @@ static bool TryBuildCommandScreen(
                 "to" => HandleMailTo(mail, workspace, sessionState, commandParts[1], out persistState),
                 "subject" => HandleMailSubject(mail, workspace, sessionState, commandParts[1], out persistState),
                 "body" => HandleMailBody(mail, workspace, sessionState, commandParts[1], out persistState),
+                "send" => HandleMailSend(mail, sessionState, out persistState),
                 _ => null
             },
             CommunicationsModule communications => commandParts[0].ToLowerInvariant() switch
@@ -375,7 +399,7 @@ static bool TryBuildCommandScreen(
             },
             ReportingModule reporting => commandParts[0].ToLowerInvariant() switch
             {
-                "run" => reporting.BuildRunScreen(commandParts[1]),
+                "run" => reporting.BuildRunScreen(commandParts[1], sessionState.Database),
                 "schedule" => reporting.BuildScheduleScreen(commandParts[1]),
                 "design" => reporting.BuildDesignScreen(commandParts[1]),
                 _ => null
@@ -463,6 +487,22 @@ static ModuleScreen HandleDatabaseUpdate(
     return module.UpdateRecord(sessionState.Database, parts[0], parts[1], parts[2], parts[3]);
 }
 
+static ModuleScreen HandleDatabaseDelete(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    string argument,
+    out bool persistState)
+{
+    var parts = argument.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2)
+    {
+        throw new InvalidOperationException("Usage: delete CUSTOMERS C-1004");
+    }
+
+    persistState = true;
+    return module.DeleteRecord(sessionState.Database, parts[0], parts[1]);
+}
+
 static ModuleScreen HandleWordNew(
     WordProcessingModule module,
     OfficeWorkspace workspace,
@@ -506,6 +546,17 @@ static ModuleScreen HandleWordTitle(
     return module.BuildNewLetterScreen(workspace, sessionState.Word);
 }
 
+static ModuleScreen HandleWordDeleteLine(
+    WordProcessingModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    out bool persistState)
+{
+    sessionState.Word.DeleteLastLine();
+    persistState = true;
+    return module.BuildNewLetterScreen(workspace, sessionState.Word);
+}
+
 static ModuleScreen HandleMailTo(
     MailModule module,
     OfficeWorkspace workspace,
@@ -540,6 +591,25 @@ static ModuleScreen HandleMailBody(
     sessionState.Mail.Body = body;
     persistState = true;
     return module.BuildComposeScreen(workspace, sessionState.Mail);
+}
+
+static ModuleScreen HandleMailSend(
+    MailModule module,
+    AppSessionState sessionState,
+    out bool persistState)
+{
+    sessionState.Mail.SentItems.Add(new MailSentItemState
+    {
+        To = sessionState.Mail.To,
+        Subject = sessionState.Mail.Subject,
+        Body = sessionState.Mail.Body,
+        SentAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+    });
+    sessionState.Mail.To = "SALES";
+    sessionState.Mail.Subject = "Weekly pipeline update";
+    sessionState.Mail.Body = "Please send the current pipeline figures before noon.";
+    persistState = true;
+    return module.BuildSentItemsScreen(sessionState.Mail);
 }
 
 static string Fit(string text, int width)
@@ -621,4 +691,80 @@ static string NormalizeCommandAlias(string input)
         "/F10" or "F10" => "q",
         _ => input
     };
+}
+
+static string ReadCommand(IOfficeModule activeModule)
+{
+    if (Console.IsInputRedirected || Console.IsOutputRedirected)
+    {
+        Console.Write("Command> ");
+        return Console.ReadLine()?.Trim() ?? string.Empty;
+    }
+
+    var buffer = new List<char>();
+    Console.Write("Command> ");
+
+    while (true)
+    {
+        var key = Console.ReadKey(intercept: true);
+
+        switch (key.Key)
+        {
+            case ConsoleKey.Enter:
+                Console.WriteLine();
+                return new string(buffer.ToArray()).Trim();
+            case ConsoleKey.Backspace:
+                if (buffer.Count > 0)
+                {
+                    buffer.RemoveAt(buffer.Count - 1);
+                    Console.Write("\b \b");
+                }
+                break;
+            case ConsoleKey.F1:
+                Console.WriteLine("menu");
+                return "menu";
+            case ConsoleKey.F2:
+                Console.WriteLine("menu");
+                return "menu";
+            case ConsoleKey.F3:
+                Console.WriteLine("home");
+                return "home";
+            case ConsoleKey.F5:
+                Console.WriteLine("open ");
+                return "open ";
+            case ConsoleKey.F6:
+                Console.WriteLine("edit ");
+                return "edit ";
+            case ConsoleKey.F7:
+                Console.WriteLine("run ");
+                return "run ";
+            case ConsoleKey.F10:
+                Console.WriteLine("q");
+                return "q";
+            case ConsoleKey.LeftArrow:
+                Console.WriteLine();
+                return "__NAV_LEFT__";
+            case ConsoleKey.RightArrow:
+                Console.WriteLine();
+                return "__NAV_RIGHT__";
+            default:
+                if (!char.IsControl(key.KeyChar))
+                {
+                    buffer.Add(key.KeyChar);
+                    Console.Write(key.KeyChar);
+                }
+                break;
+        }
+    }
+}
+
+static IOfficeModule CycleModule(OfficeSuite suite, IOfficeModule activeModule, int delta)
+{
+    var currentIndex = suite.Modules
+        .Select((module, index) => new { module, index })
+        .First(entry => entry.module.Info.Id == activeModule.Info.Id)
+        .index;
+
+    var nextIndex = (currentIndex + delta + suite.Modules.Count) % suite.Modules.Count;
+    return suite.Modules[nextIndex];
 }

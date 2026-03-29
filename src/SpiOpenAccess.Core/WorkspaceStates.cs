@@ -42,6 +42,14 @@ public sealed class WordProcessorWorkspaceState
         "Regards,",
         "ADMIN"
     ];
+
+    public void DeleteLastLine()
+    {
+        if (Lines.Count > 0)
+        {
+            Lines.RemoveAt(Lines.Count - 1);
+        }
+    }
 }
 
 public sealed class MailWorkspaceState
@@ -49,6 +57,15 @@ public sealed class MailWorkspaceState
     public string To { get; set; } = "SALES";
     public string Subject { get; set; } = "Weekly pipeline update";
     public string Body { get; set; } = "Please send the current pipeline figures before noon.";
+    public List<MailSentItemState> SentItems { get; set; } = [];
+}
+
+public sealed class MailSentItemState
+{
+    public string To { get; set; } = string.Empty;
+    public string Subject { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string SentAt { get; set; } = string.Empty;
 }
 
 public sealed class DatabaseWorkspaceState

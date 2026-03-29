@@ -110,6 +110,7 @@ public sealed class DatabaseModule : IOfficeModule
     {
         var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
         var records = GetRecords(state, table.Name);
+        var firstRecord = records.FirstOrDefault();
         var content = new List<string>
         {
             $"Table            : {table.Name}",
@@ -124,11 +125,17 @@ public sealed class DatabaseModule : IOfficeModule
             content.Add($"  {string.Join(" | ", record.Select(field => $"{field.Key}={field.Value}"))}");
         }
 
+        if (firstRecord is not null)
+        {
+            content.Add("Current pointer   :");
+            content.AddRange(firstRecord.Select(field => $"  {field.Key,-16} {field.Value}"));
+        }
+
         return ModuleScreen.Create(
             $"Table {table.Name}",
             "Table view with live record preview.",
             content,
-            [$"find {table.Name} <term>", $"append {table.Name} field=value;...", $"update {table.Name} key field value"]);
+            [$"find {table.Name} <term>", $"append {table.Name} field=value;...", $"update {table.Name} key field value", $"delete {table.Name} key"]);
     }
 
     public ModuleScreen BuildFormScreen(string formName)
@@ -267,6 +274,19 @@ public sealed class DatabaseModule : IOfficeModule
         }
 
         record[fieldName] = newValue;
+        return BuildTableScreen(state, table.Name);
+    }
+
+    public ModuleScreen DeleteRecord(DatabaseWorkspaceState state, string tableName, string keyValue)
+    {
+        var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
+        var keyField = table.KeyField;
+        var records = GetRecords(state, table.Name);
+        var record = records
+            .FirstOrDefault(candidate => string.Equals(candidate.GetValueOrDefault(keyField), keyValue, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Unknown record '{keyValue}' in table '{tableName}'.");
+
+        records.Remove(record);
         return BuildTableScreen(state, table.Name);
     }
 

@@ -96,4 +96,16 @@ public sealed class DatabaseCatalogLoaderTests
         Assert.Contains(appended.Content, line => line.Contains("Retro Works", StringComparison.Ordinal));
         Assert.Contains(updated.Content, line => line.Contains("Leipzig", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void DatabaseModule_CanDeleteRecords()
+    {
+        var module = new DatabaseModule(DatabaseCatalogLoader.LoadDefault());
+        var state = module.CreateWorkspaceState();
+        module.AppendRecord(state, "CUSTOMERS", "Id=C-1004;Company=Retro Works;City=Berlin;Tier=B");
+
+        var deleted = module.DeleteRecord(state, "CUSTOMERS", "C-1004");
+
+        Assert.DoesNotContain(deleted.Content, line => line.Contains("C-1004", StringComparison.Ordinal));
+    }
 }

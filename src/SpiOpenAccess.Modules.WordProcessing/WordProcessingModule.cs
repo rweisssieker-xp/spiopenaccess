@@ -50,7 +50,7 @@ public sealed class WordProcessingModule : IOfficeModule
                 "Insert blocks    : Address, Subject, Greeting, Signature",
                 $"Status           : {state.Lines.Count} lines in draft"
             },
-            ["type <text>", "title <text>", "preview page 1"]);
+            ["type <text>", "title <text>", "delete-line", "preview page 1"]);
     }
 
     public ModuleScreen BuildMergeScreen()
