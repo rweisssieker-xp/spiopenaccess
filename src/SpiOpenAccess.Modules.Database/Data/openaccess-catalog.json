@@ -1,0 +1,86 @@
+{
+  "tables": [
+    {
+      "name": "CUSTOMERS",
+      "keyField": "Id",
+      "columns": [
+        { "name": "Id", "type": "CHAR", "width": 8 },
+        { "name": "Company", "type": "CHAR", "width": 40 },
+        { "name": "City", "type": "CHAR", "width": 24 },
+        { "name": "Tier", "type": "CHAR", "width": 12 }
+      ],
+      "records": [
+        { "Id": "C-1001", "Company": "Nordwest Handel", "City": "Bremen", "Tier": "A" },
+        { "Id": "C-1002", "Company": "Merkur Logistik", "City": "Hamburg", "Tier": "B" },
+        { "Id": "C-1003", "Company": "Rhein Data Print", "City": "Koeln", "Tier": "A" }
+      ]
+    },
+    {
+      "name": "ORDERS",
+      "keyField": "OrderNo",
+      "columns": [
+        { "name": "OrderNo", "type": "CHAR", "width": 10 },
+        { "name": "CustomerId", "type": "CHAR", "width": 8 },
+        { "name": "Date", "type": "DATE", "width": 10 },
+        { "name": "NetAmount", "type": "NUM", "width": 12 }
+      ],
+      "records": [
+        { "OrderNo": "O-24001", "CustomerId": "C-1001", "Date": "2026-03-01", "NetAmount": "12450.00" },
+        { "OrderNo": "O-24002", "CustomerId": "C-1002", "Date": "2026-03-07", "NetAmount": "8750.00" },
+        { "OrderNo": "O-24003", "CustomerId": "C-1003", "Date": "2026-03-14", "NetAmount": "19300.00" }
+      ]
+    },
+    {
+      "name": "INVOICES",
+      "keyField": "InvoiceNo",
+      "columns": [
+        { "name": "InvoiceNo", "type": "CHAR", "width": 10 },
+        { "name": "OrderNo", "type": "CHAR", "width": 10 },
+        { "name": "DueDate", "type": "DATE", "width": 10 },
+        { "name": "Status", "type": "CHAR", "width": 12 }
+      ],
+      "records": [
+        { "InvoiceNo": "I-91001", "OrderNo": "O-24001", "DueDate": "2026-04-01", "Status": "OPEN" },
+        { "InvoiceNo": "I-91002", "OrderNo": "O-24002", "DueDate": "2026-04-07", "Status": "OPEN" },
+        { "InvoiceNo": "I-91003", "OrderNo": "O-24003", "DueDate": "2026-04-14", "Status": "HOLD" }
+      ]
+    }
+  ],
+  "forms": [
+    {
+      "name": "CUSTOMER_CARD",
+      "table": "CUSTOMERS",
+      "fields": [ "Id", "Company", "City", "Tier" ]
+    },
+    {
+      "name": "ORDER_ENTRY",
+      "table": "ORDERS",
+      "fields": [ "OrderNo", "CustomerId", "Date", "NetAmount" ]
+    },
+    {
+      "name": "INVOICE_DESK",
+      "table": "INVOICES",
+      "fields": [ "InvoiceNo", "OrderNo", "DueDate", "Status" ]
+    }
+  ],
+  "reports": [
+    {
+      "name": "AGING",
+      "table": "INVOICES",
+      "groupBy": "Status",
+      "summaries": [ "count", "by status" ]
+    },
+    {
+      "name": "REVENUE_CITY",
+      "table": "ORDERS",
+      "groupBy": "CustomerId",
+      "summaries": [ "sum NetAmount", "avg NetAmount" ]
+    },
+    {
+      "name": "OPEN_ORDERS",
+      "table": "ORDERS",
+      "groupBy": "Date",
+      "summaries": [ "count", "sum NetAmount" ]
+    }
+  ]
+}

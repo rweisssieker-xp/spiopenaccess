@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpiOpenAccess.Core\SpiOpenAccess.Core.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Database\SpiOpenAccess.Modules.Database.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Spreadsheet\SpiOpenAccess.Modules.Spreadsheet.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.WordProcessing\SpiOpenAccess.Modules.WordProcessing.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Communications\SpiOpenAccess.Modules.Communications.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Mail\SpiOpenAccess.Modules.Mail.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Reporting\SpiOpenAccess.Modules.Reporting.csproj" />
+    <ProjectReference Include="..\SpiOpenAccess.Modules.Programming\SpiOpenAccess.Modules.Programming.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
