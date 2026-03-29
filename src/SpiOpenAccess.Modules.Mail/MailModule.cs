@@ -37,5 +37,59 @@ public sealed class MailModule : IOfficeModule
             ["open OPS-142", "compose", "route rules"]);
     }
 
+    public ModuleScreen BuildMessageScreen(string messageId)
+    {
+        var message = _inbox.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, messageId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Unknown message '{messageId}'.");
+
+        return ModuleScreen.Create(
+            $"Message {message.Id}",
+            "Nachrichtenansicht der lokalen Mailbox.",
+            new[]
+            {
+                $"From             : {message.Sender}",
+                $"Subject          : {message.Subject}",
+                $"Status           : {(message.IsUnread ? "Unread" : "Read")}",
+                "Folder           : Inbox",
+                "Body             :",
+                "  Action item review required before noon.",
+                "  Please confirm by internal reply."
+            },
+            ["compose", "route rules", "back"]);
+    }
+
+    public ModuleScreen BuildComposeScreen(OfficeWorkspace workspace)
+    {
+        return ModuleScreen.Create(
+            "Compose Message",
+            "Neue interne Nachricht.",
+            new[]
+            {
+                $"From             : {workspace.Owner}@{workspace.Name.ToLowerInvariant()}.lan",
+                "To               : SALES",
+                "Cc               :",
+                "Subject          : Weekly pipeline update",
+                "Attachment       : none",
+                "Draft status     : unsent"
+            },
+            ["open OPS-142", "route rules", "back"]);
+    }
+
+    public ModuleScreen BuildRoutingRulesScreen()
+    {
+        return ModuleScreen.Create(
+            "Routing Rules",
+            "Automatische Verteilung und Ordnerregeln.",
+            new[]
+            {
+                "Rule 1           : Finance -> Action",
+                "Rule 2           : Subject contains 'invoice' -> Collections",
+                "Rule 3           : Unread older than 3 days -> Escalation",
+                "Default folder   : Inbox"
+            },
+            ["compose", "open OPS-142", "back"]);
+    }
+
     private sealed record MessagePreview(string Id, string Subject, string Sender, bool IsUnread);
 }

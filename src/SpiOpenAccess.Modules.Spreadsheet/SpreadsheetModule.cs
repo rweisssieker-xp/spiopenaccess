@@ -37,4 +37,59 @@ public sealed class SpreadsheetModule : IOfficeModule
             content,
             ["recalc", "goal-seek margin 18", "print area A1:H56"]);
     }
+
+    public ModuleScreen BuildRecalcScreen(OfficeWorkspace workspace)
+    {
+        var total = _quarterlyRevenue.Sum();
+        var margins = _quarterlyRevenue.Select(value => Math.Round(value / total * 100m, 2)).ToArray();
+
+        return ModuleScreen.Create(
+            "Recalc Worksheet",
+            "Neuberechnung der aktiven Arbeitsmappe.",
+            new[]
+            {
+                $"Workbook         : {workspace.Name}-Financials",
+                "Sheet            : FY26 Revenue",
+                $"Recalc timestamp : {workspace.SnapshotDate:yyyy-MM-dd} 09:00",
+                $"Total revenue    : {total.ToString("N0", CultureInfo.InvariantCulture)}",
+                $"Quarter mix      : Q1={margins[0]}%  Q2={margins[1]}%  Q3={margins[2]}%  Q4={margins[3]}%",
+                "Dependency graph : 12 formulas refreshed",
+                "Status           : Workbook consistent"
+            },
+            ["goal-seek margin 18", "print area A1:H56", "back"]);
+    }
+
+    public ModuleScreen BuildGoalSeekScreen(string target)
+    {
+        return ModuleScreen.Create(
+            "Goal Seek",
+            "Szenarioanalyse fuer Zielwerte.",
+            new[]
+            {
+                "Objective cell    : Margin",
+                $"Requested target  : {target}",
+                "Driver cell       : RevenueQ4",
+                "Iterations        : 6",
+                "Suggested value   : 239,400",
+                "Result            : Feasible in aggressive scenario"
+            },
+            ["recalc", "print area A1:H56", "back"]);
+    }
+
+    public ModuleScreen BuildPrintAreaScreen(string area)
+    {
+        return ModuleScreen.Create(
+            "Print Area",
+            "Druckvorschau fuer den ausgewaehlten Zellbereich.",
+            new[]
+            {
+                $"Range            : {area}",
+                "Orientation      : Landscape",
+                "Scaling          : Fit to 1 page wide",
+                "Headers          : Enabled",
+                "Footer           : Page x of y",
+                "Preview          : FY26 Revenue overview"
+            },
+            ["recalc", "goal-seek margin 18", "back"]);
+    }
 }

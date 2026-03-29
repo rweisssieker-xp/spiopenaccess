@@ -29,4 +29,53 @@ public sealed class CommunicationsModule : IOfficeModule
             content,
             ["dial HQ", "send orders.dat", "capture on"]);
     }
+
+    public ModuleScreen BuildDialScreen(string target)
+    {
+        return ModuleScreen.Create(
+            "Dial Session",
+            "Aufbau einer Kommunikationssitzung.",
+            new[]
+            {
+                $"Target           : {target}",
+                "Port             : COM1",
+                "Baud             : 9600",
+                "Parity           : None",
+                "Handshake        : XON/XOFF",
+                "Status           : Carrier detected"
+            },
+            ["send orders.dat", "capture on", "back"]);
+    }
+
+    public ModuleScreen BuildSendScreen(string fileName)
+    {
+        return ModuleScreen.Create(
+            "File Transfer",
+            "Dateiuebertragung ueber aktives Kommunikationsprofil.",
+            new[]
+            {
+                $"Filename         : {fileName}",
+                "Protocol         : YMODEM",
+                "Blocks sent      : 18",
+                "Retries          : 0",
+                "Status           : Transfer complete"
+            },
+            ["dial HQ", "capture on", "back"]);
+    }
+
+    public ModuleScreen BuildCaptureScreen(string mode)
+    {
+        return ModuleScreen.Create(
+            "Capture Buffer",
+            "Protokolliert eingehende Daten in eine Mitschnittdatei.",
+            new[]
+            {
+                $"Capture mode     : {mode}",
+                "Output file      : HQ-SESSION.LOG",
+                "Size limit       : 128 KB",
+                "Rotation         : Disabled",
+                "Status           : Capture armed"
+            },
+            ["dial HQ", "send orders.dat", "back"]);
+    }
 }

@@ -29,4 +29,53 @@ public sealed class ReportingModule : IOfficeModule
             content,
             ["run Aging", "schedule Evening Finance", "design Revenue-City"]);
     }
+
+    public ModuleScreen BuildRunScreen(string reportName)
+    {
+        return ModuleScreen.Create(
+            $"Run {reportName}",
+            "Batch-Ausfuehrung eines Reports.",
+            new[]
+            {
+                $"Definition       : {reportName}",
+                "Input source     : Shared workspace",
+                "Rows scanned     : 3,412",
+                "Groups           : 12",
+                "Output target    : PDF spool + Laser A",
+                "Status           : Completed"
+            },
+            ["schedule Evening Finance", "design Revenue-City", "back"]);
+    }
+
+    public ModuleScreen BuildScheduleScreen(string queueName)
+    {
+        return ModuleScreen.Create(
+            "Batch Schedule",
+            "Zeitplanung fuer Report-Laeufe.",
+            new[]
+            {
+                $"Queue            : {queueName}",
+                "Start time       : 18:30",
+                "Recurrence       : Weekdays",
+                "Printer target   : Laser A",
+                "Retention        : 14 days"
+            },
+            ["run Aging", "design Revenue-City", "back"]);
+    }
+
+    public ModuleScreen BuildDesignScreen(string reportName)
+    {
+        return ModuleScreen.Create(
+            "Report Designer",
+            "Layoutdefinition fuer Listen und Auswertungen.",
+            new[]
+            {
+                $"Layout           : {reportName}",
+                "Sections         : Header, Detail, Footer",
+                "Grouping         : Enabled",
+                "Summary fields   : Count, NetAmount",
+                "Printer escapes  : Dot matrix compatible"
+            },
+            ["run Aging", "schedule Evening Finance", "back"]);
+    }
 }

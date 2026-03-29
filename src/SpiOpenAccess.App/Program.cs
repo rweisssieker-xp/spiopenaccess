@@ -1,6 +1,12 @@
 using SpiOpenAccess.Core;
 using SpiOpenAccess.Infrastructure;
+using SpiOpenAccess.Modules.Communications;
 using SpiOpenAccess.Modules.Database;
+using SpiOpenAccess.Modules.Mail;
+using SpiOpenAccess.Modules.Programming;
+using SpiOpenAccess.Modules.Reporting;
+using SpiOpenAccess.Modules.Spreadsheet;
+using SpiOpenAccess.Modules.WordProcessing;
 
 const int FrameWidth = 80;
 const int VisibleBodyLines = 17;
@@ -248,25 +254,93 @@ static bool TryBuildCommandScreen(
         return true;
     }
 
-    if (activeModule is not DatabaseModule databaseModule)
+    var commandParts = input.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (commandParts.Length == 0)
     {
-        error = $"Command not supported in {activeModule.Info.DisplayName}.";
         return false;
     }
 
-    var commandParts = input.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-    if (commandParts.Length != 2)
+    if (commandParts.Length == 1)
     {
-        return false;
+        try
+        {
+            screen = activeModule switch
+            {
+                SpreadsheetModule spreadsheet when commandParts[0].Equals("recalc", StringComparison.OrdinalIgnoreCase)
+                    => spreadsheet.BuildRecalcScreen(workspace),
+                MailModule mail when commandParts[0].Equals("compose", StringComparison.OrdinalIgnoreCase)
+                    => mail.BuildComposeScreen(workspace),
+                MailModule mail when string.Equals(commandParts[0], "route", StringComparison.OrdinalIgnoreCase)
+                    => mail.BuildRoutingRulesScreen(),
+                CommunicationsModule communications when commandParts[0].Equals("capture", StringComparison.OrdinalIgnoreCase)
+                    => communications.BuildCaptureScreen("on"),
+                ReportingModule reporting when commandParts[0].Equals("run", StringComparison.OrdinalIgnoreCase)
+                    => reporting.BuildRunScreen("Aging"),
+                ProgrammingModule programming when commandParts[0].Equals("list", StringComparison.OrdinalIgnoreCase)
+                    => programming.BuildVariablesScreen(),
+                _ => null
+            };
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException)
+        {
+            error = exception.Message;
+            return false;
+        }
+
+        return screen is not null;
     }
 
     try
     {
-        screen = commandParts[0].ToLowerInvariant() switch
+        screen = activeModule switch
         {
-            "open" => databaseModule.BuildTableScreen(commandParts[1]),
-            "edit" => databaseModule.BuildFormScreen(commandParts[1]),
-            "run" => databaseModule.BuildReportScreen(commandParts[1]),
+            DatabaseModule databaseModule => commandParts[0].ToLowerInvariant() switch
+            {
+                "open" => databaseModule.BuildTableScreen(commandParts[1]),
+                "edit" => databaseModule.BuildFormScreen(commandParts[1]),
+                "run" => databaseModule.BuildReportScreen(commandParts[1]),
+                _ => null
+            },
+            SpreadsheetModule spreadsheet => commandParts[0].ToLowerInvariant() switch
+            {
+                "goal-seek" => spreadsheet.BuildGoalSeekScreen(commandParts[1]),
+                "print" => spreadsheet.BuildPrintAreaScreen(commandParts[1]),
+                _ => null
+            },
+            WordProcessingModule word => commandParts[0].ToLowerInvariant() switch
+            {
+                "new" => word.BuildNewLetterScreen(workspace),
+                "merge" => word.BuildMergeScreen(),
+                "preview" => word.BuildPreviewScreen(commandParts[1]),
+                _ => null
+            },
+            MailModule mail => commandParts[0].ToLowerInvariant() switch
+            {
+                "open" => mail.BuildMessageScreen(commandParts[1]),
+                "route" => mail.BuildRoutingRulesScreen(),
+                _ => null
+            },
+            CommunicationsModule communications => commandParts[0].ToLowerInvariant() switch
+            {
+                "dial" => communications.BuildDialScreen(commandParts[1]),
+                "send" => communications.BuildSendScreen(commandParts[1]),
+                "capture" => communications.BuildCaptureScreen(commandParts[1]),
+                _ => null
+            },
+            ReportingModule reporting => commandParts[0].ToLowerInvariant() switch
+            {
+                "run" => reporting.BuildRunScreen(commandParts[1]),
+                "schedule" => reporting.BuildScheduleScreen(commandParts[1]),
+                "design" => reporting.BuildDesignScreen(commandParts[1]),
+                _ => null
+            },
+            ProgrammingModule programming => commandParts[0].ToLowerInvariant() switch
+            {
+                "run" => programming.BuildRunScreen(commandParts[1]),
+                "list" => programming.BuildVariablesScreen(),
+                "compile" => programming.BuildCompileScreen(commandParts[1]),
+                _ => null
+            },
             _ => null
         };
     }

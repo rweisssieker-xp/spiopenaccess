@@ -41,6 +41,56 @@ public sealed class ProgrammingModule : IOfficeModule
             ["run sample.pro", "list variables", "compile nightly.pro"]);
     }
 
+    public ModuleScreen BuildRunScreen(string programName)
+    {
+        var result = RunProgram(SampleProgram);
+        var content = new List<string>
+        {
+            $"Program          : {programName}",
+            $"Statements       : {result.StatementCount}",
+            $"Variables        : {result.Variables.Count}",
+            "Output           :"
+        };
+        content.AddRange(result.Output.Select(line => $"  {line}"));
+
+        return ModuleScreen.Create(
+            $"Run {programName}",
+            "Ausfuehrung eines PRO-inspirierten Programms.",
+            content,
+            ["list variables", "compile nightly.pro", "back"]);
+    }
+
+    public ModuleScreen BuildVariablesScreen()
+    {
+        var result = RunProgram(SampleProgram);
+        var content = result.Variables
+            .Select(pair => $"  {pair.Key,-16} {Convert.ToString(pair.Value, CultureInfo.InvariantCulture)}")
+            .Prepend("Variable state    :")
+            .ToArray();
+
+        return ModuleScreen.Create(
+            "Variable Watch",
+            "Laufzeitstatus der Skriptvariablen.",
+            content,
+            ["run sample.pro", "compile nightly.pro", "back"]);
+    }
+
+    public ModuleScreen BuildCompileScreen(string programName)
+    {
+        return ModuleScreen.Create(
+            $"Compile {programName}",
+            "Vorbereitung eines Batch-Programms.",
+            new[]
+            {
+                $"Source           : {programName}",
+                "Passes           : lex, parse, bind",
+                "Warnings         : 0",
+                "Output           : nightly.pbc",
+                "Status           : Compile successful"
+            },
+            ["run sample.pro", "list variables", "back"]);
+    }
+
     public ProgramResult RunProgram(string source)
     {
         var variables = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
