@@ -18,6 +18,7 @@ public sealed class WordProcessingModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, WordProcessorWorkspaceState state)
     {
+        state.GetNormalizedCursorLine();
         var content = new[]
         {
             $"Document         : {state.Title}",
@@ -26,7 +27,8 @@ public sealed class WordProcessingModule : IOfficeModule
             "Styles           : Body, Heading 1, Heading 2, Signature",
             "Merge fields     : Company, Contact, DueDate, NetAmount",
             "Print settings   : A4 portrait, 2.5 cm margins",
-            $"Review           : {state.Lines.Count} content lines loaded"
+            $"Review           : {state.Lines.Count} content lines loaded",
+            $"Cursor line      : {state.CursorLine}"
         };
 
         return ModuleScreen.Create(
@@ -38,6 +40,11 @@ public sealed class WordProcessingModule : IOfficeModule
 
     public ModuleScreen BuildNewLetterScreen(OfficeWorkspace workspace, WordProcessorWorkspaceState state)
     {
+        state.GetNormalizedCursorLine();
+        var cursorPreview = state.Lines.Take(6)
+            .Select((line, index) => $"{(index + 1 == state.CursorLine ? ">" : " ")} {index + 1,2}: {line}")
+            .ToArray();
+
         return ModuleScreen.Create(
             "New Letter",
             "Create a new document from a template.",
@@ -45,12 +52,13 @@ public sealed class WordProcessingModule : IOfficeModule
             {
                 $"Document         : {state.Title}",
                 $"Template         : {state.Template}",
-                $"Cursor           : Page 1, Line {Math.Max(1, state.Lines.Count)}, Col 1",
+                $"Cursor           : Page 1, Line {state.CursorLine}, Col 1",
                 "Default style    : Body",
                 "Insert blocks    : Address, Subject, Greeting, Signature",
-                $"Status           : {state.Lines.Count} lines in draft"
-            },
-            ["type <text>", "title <text>", "delete-line", "preview page 1"]);
+                $"Status           : {state.Lines.Count} lines in draft",
+                "Document excerpt :"
+            }.Concat(cursorPreview),
+            ["insert <text>", "replace <text>", "cursor up", "cursor down", "delete-line", "preview page 1"]);
     }
 
     public ModuleScreen BuildMergeScreen()

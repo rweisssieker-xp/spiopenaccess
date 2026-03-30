@@ -69,7 +69,7 @@ public sealed class DatabaseModule : IOfficeModule
 
     public DatabaseWorkspaceState CreateWorkspaceState()
     {
-        return new DatabaseWorkspaceState
+        var state = new DatabaseWorkspaceState
         {
             Tables = _catalog.Tables.Select(table => new DatabaseTableState
             {
@@ -79,6 +79,13 @@ public sealed class DatabaseModule : IOfficeModule
                     .ToList()
             }).ToList()
         };
+
+        if (state.Tables.Count > 0)
+        {
+            state.ActiveTableName = state.Tables[0].Name;
+        }
+
+        return state;
     }
 
     public DatabaseTable? FindTable(string tableName)
@@ -109,33 +116,39 @@ public sealed class DatabaseModule : IOfficeModule
     public ModuleScreen BuildTableScreen(DatabaseWorkspaceState state, string tableName)
     {
         var table = FindTable(tableName) ?? throw new KeyNotFoundException($"Unknown table '{tableName}'.");
-        var records = GetRecords(state, table.Name);
-        var firstRecord = records.FirstOrDefault();
+        state.SetActiveTable(table.Name);
+        var tableState = state.GetTable(table.Name);
+        var records = tableState.Records;
+        var currentIndex = tableState.GetNormalizedCurrentIndex();
+        var currentRecord = tableState.GetCurrentRecord();
         var content = new List<string>
         {
             $"Table            : {table.Name}",
             $"Key field        : {table.KeyField}",
             $"Columns          : {string.Join(", ", table.Columns.Select(column => $"{column.Name}:{column.Type}({column.Width})"))}",
             $"Record count     : {records.Count}",
+            $"Current row      : {(records.Count == 0 ? "n/a" : $"{currentIndex + 1} of {records.Count}")}",
             "Rows             :"
         };
 
-        foreach (var record in records.Take(10))
+        for (var index = 0; index < Math.Min(records.Count, 10); index++)
         {
-            content.Add($"  {string.Join(" | ", record.Select(field => $"{field.Key}={field.Value}"))}");
+            var marker = index == currentIndex ? ">" : " ";
+            var record = records[index];
+            content.Add($"{marker} {string.Join(" | ", record.Select(field => $"{field.Key}={field.Value}"))}");
         }
 
-        if (firstRecord is not null)
+        if (currentRecord is not null)
         {
             content.Add("Current pointer   :");
-            content.AddRange(firstRecord.Select(field => $"  {field.Key,-16} {field.Value}"));
+            content.AddRange(currentRecord.Select(field => $"  {field.Key,-16} {field.Value}"));
         }
 
         return ModuleScreen.Create(
             $"Table {table.Name}",
-            "Table view with live record preview.",
+            "Table view with live record preview and browse pointer.",
             content,
-            [$"find {table.Name} <term>", $"append {table.Name} field=value;...", $"update {table.Name} key field value", $"delete {table.Name} key"]);
+            [$"browse {table.Name}", "next", "prev", $"find {table.Name} <term>", $"append {table.Name} field=value;...", $"update {table.Name} key field value", $"delete {table.Name} key"]);
     }
 
     public ModuleScreen BuildFormScreen(string formName)
@@ -256,7 +269,9 @@ public sealed class DatabaseModule : IOfficeModule
             throw new InvalidOperationException($"Missing key field '{keyField}'.");
         }
 
-        GetRecords(state, table.Name).Add(new Dictionary<string, string>(record, StringComparer.OrdinalIgnoreCase));
+        var records = GetRecords(state, table.Name);
+        records.Add(new Dictionary<string, string>(record, StringComparer.OrdinalIgnoreCase));
+        state.GetTable(table.Name).CurrentIndex = records.Count - 1;
         return BuildTableScreen(state, table.Name);
     }
 
@@ -287,7 +302,27 @@ public sealed class DatabaseModule : IOfficeModule
             ?? throw new KeyNotFoundException($"Unknown record '{keyValue}' in table '{tableName}'.");
 
         records.Remove(record);
+        state.GetTable(table.Name).GetNormalizedCurrentIndex();
         return BuildTableScreen(state, table.Name);
+    }
+
+    public ModuleScreen BuildBrowseScreen(DatabaseWorkspaceState state, string tableName)
+    {
+        return BuildTableScreen(state, tableName);
+    }
+
+    public ModuleScreen MoveNext(DatabaseWorkspaceState state)
+    {
+        var tableState = state.GetActiveTable();
+        tableState.MoveNext();
+        return BuildTableScreen(state, tableState.Name);
+    }
+
+    public ModuleScreen MovePrevious(DatabaseWorkspaceState state)
+    {
+        var tableState = state.GetActiveTable();
+        tableState.MovePrevious();
+        return BuildTableScreen(state, tableState.Name);
     }
 
     private static List<Dictionary<string, string>> GetRecords(DatabaseWorkspaceState state, string tableName)

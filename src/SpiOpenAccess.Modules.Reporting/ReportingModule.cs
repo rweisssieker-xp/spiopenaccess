@@ -14,14 +14,20 @@ public sealed class ReportingModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
+        return BuildHomeScreen(workspace, new ReportingWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, ReportingWorkspaceState state)
+    {
         var content = new[]
         {
             $"Catalog          : {workspace.Name} Reporting",
             "Definitions      : 18",
-            "Batch queues     : Morning Ops, Evening Finance",
+            $"Batch queue      : {state.ScheduledQueue}",
             "Printer targets  : Laser A, Dot Matrix, PDF spool",
-            "Recent output    : Aging-2026-03-28.lst, Revenue-City.prn",
-            "Layout blocks    : Header, Detail, Group Footer, Summary"
+            $"Last run         : {state.LastRunReport} {(string.IsNullOrWhiteSpace(state.LastRunAt) ? "<pending>" : state.LastRunAt)}",
+            $"Active layout    : {state.ActiveLayout}",
+            $"Recent output    : {(state.OutputHistory.Count == 0 ? "<none>" : string.Join(", ", state.OutputHistory.TakeLast(2)))}"
         };
 
         return ModuleScreen.Create(
@@ -50,6 +56,11 @@ public sealed class ReportingModule : IOfficeModule
 
     public ModuleScreen BuildRunScreen(string reportName, DatabaseWorkspaceState databaseState)
     {
+        return BuildRunScreen(new ReportingWorkspaceState(), reportName, databaseState);
+    }
+
+    public ModuleScreen BuildRunScreen(ReportingWorkspaceState state, string reportName, DatabaseWorkspaceState databaseState)
+    {
         var table = databaseState.GetTable("INVOICES");
         var groups = table.Records
             .GroupBy(record => record.GetValueOrDefault("Status", "<null>"))
@@ -66,6 +77,7 @@ public sealed class ReportingModule : IOfficeModule
         };
         content.AddRange(groups.Select(group => $"  {group.Key,-12} count={group.Count()}"));
         content.Add("Output target    : PDF spool + Laser A");
+        content.Add($"Output file      : {state.OutputHistory.LastOrDefault() ?? $"{reportName}.lst"}");
         content.Add("Status           : Completed");
 
         return ModuleScreen.Create(
@@ -77,6 +89,11 @@ public sealed class ReportingModule : IOfficeModule
 
     public ModuleScreen BuildScheduleScreen(string queueName)
     {
+        return BuildScheduleScreen(new ReportingWorkspaceState { ScheduledQueue = queueName }, queueName);
+    }
+
+    public ModuleScreen BuildScheduleScreen(ReportingWorkspaceState state, string queueName)
+    {
         return ModuleScreen.Create(
             "Batch Schedule",
             "Schedule recurring report runs.",
@@ -86,12 +103,18 @@ public sealed class ReportingModule : IOfficeModule
                 "Start time       : 18:30",
                 "Recurrence       : Weekdays",
                 "Printer target   : Laser A",
-                "Retention        : 14 days"
+                "Retention        : 14 days",
+                $"Active layout    : {state.ActiveLayout}"
             },
             ["run Aging", "design Revenue-City", "back"]);
     }
 
     public ModuleScreen BuildDesignScreen(string reportName)
+    {
+        return BuildDesignScreen(new ReportingWorkspaceState { ActiveLayout = reportName }, reportName);
+    }
+
+    public ModuleScreen BuildDesignScreen(ReportingWorkspaceState state, string reportName)
     {
         return ModuleScreen.Create(
             "Report Designer",
@@ -102,7 +125,8 @@ public sealed class ReportingModule : IOfficeModule
                 "Sections         : Header, Detail, Footer",
                 "Grouping         : Enabled",
                 "Summary fields   : Count, NetAmount",
-                "Printer escapes  : Dot matrix compatible"
+                "Printer escapes  : Dot matrix compatible",
+                $"Queued output    : {state.OutputHistory.Count}"
             },
             ["run Aging", "schedule Evening Finance", "back"]);
     }

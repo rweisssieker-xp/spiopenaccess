@@ -31,6 +31,7 @@ public sealed class SpreadsheetModule : IOfficeModule
             $"Q1..Q4           : {string.Join(" | ", revenue.Select(value => value.ToString("N0", CultureInfo.InvariantCulture)))}",
             $"Total            : {total.ToString("N0", CultureInfo.InvariantCulture)}",
             $"Average quarter  : {average.ToString("N2", CultureInfo.InvariantCulture)}",
+            $"Active cell      : {state.ActiveCell} = {state.GetCell(state.ActiveCell).ToString("N2", CultureInfo.InvariantCulture)}",
             "Named ranges     : RevenueQ1, RevenueQ2, RevenueQ3, RevenueQ4",
             "Scenario manager : Conservative, Base, Aggressive"
         };
@@ -39,7 +40,7 @@ public sealed class SpreadsheetModule : IOfficeModule
             Info.DisplayName,
             Info.Summary,
             content,
-            ["recalc", "goal-seek margin 18", "print area A1:H56"]);
+            ["grid", "select A1", "put A1 120000", "recalc", "goal-seek margin 18", "print area A1:H56"]);
     }
 
     public ModuleScreen BuildRecalcScreen(OfficeWorkspace workspace, SpreadsheetWorkspaceState state)
@@ -62,6 +63,71 @@ public sealed class SpreadsheetModule : IOfficeModule
                 "Status           : Workbook consistent"
             },
             ["goal-seek margin 18", "print area A1:H56", "back"]);
+    }
+
+    public ModuleScreen BuildGridScreen(SpreadsheetWorkspaceState state)
+    {
+        var rows = new List<string>
+        {
+            $"Active cell      : {state.ActiveCell}",
+            "Grid             :",
+            "        A           B           C           D"
+        };
+
+        for (var row = 1; row <= 4; row++)
+        {
+            rows.Add($"  {row,2}  {RenderCell(state, $"A{row}")} {RenderCell(state, $"B{row}")} {RenderCell(state, $"C{row}")} {RenderCell(state, $"D{row}")}");
+        }
+
+        rows.Add($"Cell value       : {state.GetCell(state.ActiveCell).ToString("N2", CultureInfo.InvariantCulture)}");
+
+        return ModuleScreen.Create(
+            "Worksheet Grid",
+            "Editable sheet grid for the active workbook.",
+            rows,
+            ["select A1", "put A1 120000", "sum A1 D1", "recalc", "back"]);
+    }
+
+    public ModuleScreen BuildCellSumScreen(SpreadsheetWorkspaceState state, string fromCell, string toCell)
+    {
+        var from = SpreadsheetWorkspaceState.NormalizeCell(fromCell);
+        var to = SpreadsheetWorkspaceState.NormalizeCell(toCell);
+        if (from.Length != 2 || to.Length != 2 || from[1] != to[1])
+        {
+            throw new InvalidOperationException("Only horizontal ranges are supported, example: sum A1 D1");
+        }
+
+        var row = from[1..];
+        var colStart = from[0];
+        var colEnd = to[0];
+        if (colStart > colEnd)
+        {
+            (colStart, colEnd) = (colEnd, colStart);
+        }
+
+        decimal total = 0m;
+        for (var col = colStart; col <= colEnd; col++)
+        {
+            total += state.GetCell($"{col}{row}");
+        }
+
+        return ModuleScreen.Create(
+            "Range Sum",
+            "Computed range total from the active worksheet.",
+            new[]
+            {
+                $"Range            : {from}:{to}",
+                $"Result           : {total.ToString("N2", CultureInfo.InvariantCulture)}"
+            },
+            ["grid", "select A1", "put A1 120000", "back"]);
+    }
+
+    private static string RenderCell(SpreadsheetWorkspaceState state, string cell)
+    {
+        var value = state.GetCell(cell).ToString("N0", CultureInfo.InvariantCulture).PadLeft(8);
+        return string.Equals(state.ActiveCell, cell, StringComparison.OrdinalIgnoreCase)
+            ? $"[{value}]"
+            : $" {value} ";
     }
 
     public ModuleScreen BuildGoalSeekScreen(string target)

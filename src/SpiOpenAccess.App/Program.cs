@@ -130,6 +130,9 @@ static ModuleScreen BuildHomeScreen(IOfficeModule module, OfficeWorkspace worksp
         SpreadsheetModule spreadsheet => spreadsheet.BuildHomeScreen(workspace, sessionState.Spreadsheet),
         WordProcessingModule word => word.BuildHomeScreen(workspace, sessionState.Word),
         MailModule mail => mail.BuildHomeScreen(workspace, sessionState.Mail),
+        CommunicationsModule communications => communications.BuildHomeScreen(workspace, sessionState.Communications),
+        ReportingModule reporting => reporting.BuildHomeScreen(workspace, sessionState.Reporting),
+        ProgrammingModule programming => programming.BuildHomeScreen(workspace, sessionState.Programming),
         _ => module.BuildHomeScreen(workspace)
     };
 }
@@ -318,8 +321,14 @@ static bool TryBuildCommandScreen(
         {
             screen = activeModule switch
             {
+                DatabaseModule database when commandParts[0].Equals("next", StringComparison.OrdinalIgnoreCase)
+                    => HandleDatabaseNext(database, sessionState, out persistState),
+                DatabaseModule database when commandParts[0].Equals("prev", StringComparison.OrdinalIgnoreCase)
+                    => HandleDatabasePrevious(database, sessionState, out persistState),
                 SpreadsheetModule spreadsheet when commandParts[0].Equals("recalc", StringComparison.OrdinalIgnoreCase)
                     => spreadsheet.BuildRecalcScreen(workspace, sessionState.Spreadsheet),
+                SpreadsheetModule spreadsheet when commandParts[0].Equals("grid", StringComparison.OrdinalIgnoreCase)
+                    => spreadsheet.BuildGridScreen(sessionState.Spreadsheet),
                 MailModule mail when commandParts[0].Equals("compose", StringComparison.OrdinalIgnoreCase)
                     => mail.BuildComposeScreen(workspace, sessionState.Mail),
                 MailModule mail when commandParts[0].Equals("send", StringComparison.OrdinalIgnoreCase)
@@ -329,13 +338,17 @@ static bool TryBuildCommandScreen(
                 MailModule mail when string.Equals(commandParts[0], "route", StringComparison.OrdinalIgnoreCase)
                     => mail.BuildRoutingRulesScreen(),
                 CommunicationsModule communications when commandParts[0].Equals("capture", StringComparison.OrdinalIgnoreCase)
-                    => communications.BuildCaptureScreen("on"),
+                    => HandleCommunicationsCapture(communications, sessionState, "on", out persistState),
                 ReportingModule reporting when commandParts[0].Equals("run", StringComparison.OrdinalIgnoreCase)
-                    => reporting.BuildRunScreen("Aging", sessionState.Database),
+                    => HandleReportingRun(reporting, sessionState, "Aging", out persistState),
                 ProgrammingModule programming when commandParts[0].Equals("list", StringComparison.OrdinalIgnoreCase)
-                    => programming.BuildVariablesScreen(),
+                    => programming.BuildVariablesScreen(sessionState.Programming),
+                ProgrammingModule programming when commandParts[0].Equals("source", StringComparison.OrdinalIgnoreCase)
+                    => programming.BuildSourceScreen(sessionState.Programming),
                 WordProcessingModule word when commandParts[0].Equals("delete-line", StringComparison.OrdinalIgnoreCase)
                     => HandleWordDeleteLine(word, workspace, sessionState, out persistState),
+                WordProcessingModule word when commandParts[0].Equals("cursor", StringComparison.OrdinalIgnoreCase)
+                    => HandleWordCursor(word, workspace, sessionState, "down", out persistState),
                 _ => null
             };
         }
@@ -355,6 +368,7 @@ static bool TryBuildCommandScreen(
             DatabaseModule databaseModule => commandParts[0].ToLowerInvariant() switch
             {
                 "open" => databaseModule.BuildTableScreen(sessionState.Database, commandParts[1]),
+                "browse" => HandleDatabaseBrowse(databaseModule, sessionState, commandParts[1], out persistState),
                 "edit" => databaseModule.BuildFormScreen(sessionState.Database, commandParts[1]),
                 "run" => databaseModule.BuildReportScreen(sessionState.Database, commandParts[1]),
                 "find" => HandleDatabaseFind(databaseModule, sessionState, commandParts[1]),
@@ -368,6 +382,9 @@ static bool TryBuildCommandScreen(
                 "goal-seek" => spreadsheet.BuildGoalSeekScreen(commandParts[1]),
                 "print" => spreadsheet.BuildPrintAreaScreen(commandParts[1]),
                 "set" => HandleSpreadsheetSet(spreadsheet, workspace, sessionState, commandParts[1], out persistState),
+                "select" => HandleSpreadsheetSelect(spreadsheet, sessionState, commandParts[1], out persistState),
+                "put" => HandleSpreadsheetPut(spreadsheet, sessionState, commandParts[1], out persistState),
+                "sum" => HandleSpreadsheetSum(spreadsheet, sessionState, commandParts[1]),
                 _ => null
             },
             WordProcessingModule word => commandParts[0].ToLowerInvariant() switch
@@ -375,7 +392,10 @@ static bool TryBuildCommandScreen(
                 "new" => HandleWordNew(word, workspace, sessionState, out persistState),
                 "merge" => word.BuildMergeScreen(),
                 "preview" => word.BuildPreviewScreen(commandParts[1], sessionState.Word),
-                "type" => HandleWordType(word, workspace, sessionState, commandParts[1], out persistState),
+                "type" => HandleWordInsert(word, workspace, sessionState, commandParts[1], out persistState),
+                "insert" => HandleWordInsert(word, workspace, sessionState, commandParts[1], out persistState),
+                "replace" => HandleWordReplace(word, workspace, sessionState, commandParts[1], out persistState),
+                "cursor" => HandleWordCursor(word, workspace, sessionState, commandParts[1], out persistState),
                 "title" => HandleWordTitle(word, workspace, sessionState, commandParts[1], out persistState),
                 "delete-line" => HandleWordDeleteLine(word, workspace, sessionState, out persistState),
                 _ => null
@@ -392,23 +412,24 @@ static bool TryBuildCommandScreen(
             },
             CommunicationsModule communications => commandParts[0].ToLowerInvariant() switch
             {
-                "dial" => communications.BuildDialScreen(commandParts[1]),
-                "send" => communications.BuildSendScreen(commandParts[1]),
-                "capture" => communications.BuildCaptureScreen(commandParts[1]),
+                "dial" => HandleCommunicationsDial(communications, sessionState, commandParts[1], out persistState),
+                "send" => HandleCommunicationsSend(communications, sessionState, commandParts[1], out persistState),
+                "capture" => HandleCommunicationsCapture(communications, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             ReportingModule reporting => commandParts[0].ToLowerInvariant() switch
             {
-                "run" => reporting.BuildRunScreen(commandParts[1], sessionState.Database),
-                "schedule" => reporting.BuildScheduleScreen(commandParts[1]),
-                "design" => reporting.BuildDesignScreen(commandParts[1]),
+                "run" => HandleReportingRun(reporting, sessionState, commandParts[1], out persistState),
+                "schedule" => HandleReportingSchedule(reporting, sessionState, commandParts[1], out persistState),
+                "design" => HandleReportingDesign(reporting, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             ProgrammingModule programming => commandParts[0].ToLowerInvariant() switch
             {
-                "run" => programming.BuildRunScreen(commandParts[1]),
-                "list" => programming.BuildVariablesScreen(),
-                "compile" => programming.BuildCompileScreen(commandParts[1]),
+                "run" => HandleProgrammingRun(programming, sessionState, commandParts[1], out persistState),
+                "list" => programming.BuildVariablesScreen(sessionState.Programming),
+                "compile" => HandleProgrammingCompile(programming, sessionState, commandParts[1], out persistState),
+                "source" => HandleProgrammingSource(programming, sessionState, commandParts[1], out persistState),
                 _ => null
             },
             _ => null
@@ -441,6 +462,48 @@ static ModuleScreen HandleSpreadsheetSet(
     return module.BuildHomeScreen(workspace, sessionState.Spreadsheet);
 }
 
+static ModuleScreen HandleSpreadsheetSelect(
+    SpreadsheetModule module,
+    AppSessionState sessionState,
+    string cellAddress,
+    out bool persistState)
+{
+    sessionState.Spreadsheet.SelectCell(cellAddress);
+    persistState = true;
+    return module.BuildGridScreen(sessionState.Spreadsheet);
+}
+
+static ModuleScreen HandleSpreadsheetPut(
+    SpreadsheetModule module,
+    AppSessionState sessionState,
+    string argument,
+    out bool persistState)
+{
+    var parts = argument.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2 || !decimal.TryParse(parts[1], out var value))
+    {
+        throw new InvalidOperationException("Usage: put A1 120000");
+    }
+
+    sessionState.Spreadsheet.SetCell(parts[0], value);
+    persistState = true;
+    return module.BuildGridScreen(sessionState.Spreadsheet);
+}
+
+static ModuleScreen HandleSpreadsheetSum(
+    SpreadsheetModule module,
+    AppSessionState sessionState,
+    string argument)
+{
+    var parts = argument.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2)
+    {
+        throw new InvalidOperationException("Usage: sum A1 D1");
+    }
+
+    return module.BuildCellSumScreen(sessionState.Spreadsheet, parts[0], parts[1]);
+}
+
 static ModuleScreen HandleDatabaseFind(
     DatabaseModule module,
     AppSessionState sessionState,
@@ -453,6 +516,34 @@ static ModuleScreen HandleDatabaseFind(
     }
 
     return module.BuildSearchScreen(sessionState.Database, parts[0], parts[1]);
+}
+
+static ModuleScreen HandleDatabaseBrowse(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    string tableName,
+    out bool persistState)
+{
+    persistState = true;
+    return module.BuildBrowseScreen(sessionState.Database, tableName);
+}
+
+static ModuleScreen HandleDatabaseNext(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    out bool persistState)
+{
+    persistState = true;
+    return module.MoveNext(sessionState.Database);
+}
+
+static ModuleScreen HandleDatabasePrevious(
+    DatabaseModule module,
+    AppSessionState sessionState,
+    out bool persistState)
+{
+    persistState = true;
+    return module.MovePrevious(sessionState.Database);
 }
 
 static ModuleScreen HandleDatabaseAppend(
@@ -522,14 +613,26 @@ static ModuleScreen HandleWordNew(
     return module.BuildNewLetterScreen(workspace, sessionState.Word);
 }
 
-static ModuleScreen HandleWordType(
+static ModuleScreen HandleWordInsert(
     WordProcessingModule module,
     OfficeWorkspace workspace,
     AppSessionState sessionState,
     string text,
     out bool persistState)
 {
-    sessionState.Word.Lines.Add(text);
+    sessionState.Word.InsertAtCursor(text);
+    persistState = true;
+    return module.BuildNewLetterScreen(workspace, sessionState.Word);
+}
+
+static ModuleScreen HandleWordReplace(
+    WordProcessingModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string text,
+    out bool persistState)
+{
+    sessionState.Word.ReplaceAtCursor(text);
     persistState = true;
     return module.BuildNewLetterScreen(workspace, sessionState.Word);
 }
@@ -552,7 +655,31 @@ static ModuleScreen HandleWordDeleteLine(
     AppSessionState sessionState,
     out bool persistState)
 {
-    sessionState.Word.DeleteLastLine();
+    sessionState.Word.DeleteAtCursor();
+    persistState = true;
+    return module.BuildNewLetterScreen(workspace, sessionState.Word);
+}
+
+static ModuleScreen HandleWordCursor(
+    WordProcessingModule module,
+    OfficeWorkspace workspace,
+    AppSessionState sessionState,
+    string direction,
+    out bool persistState)
+{
+    if (string.Equals(direction, "up", StringComparison.OrdinalIgnoreCase))
+    {
+        sessionState.Word.MoveCursor(-1);
+    }
+    else if (string.Equals(direction, "down", StringComparison.OrdinalIgnoreCase))
+    {
+        sessionState.Word.MoveCursor(1);
+    }
+    else
+    {
+        throw new InvalidOperationException("Usage: cursor up|down");
+    }
+
     persistState = true;
     return module.BuildNewLetterScreen(workspace, sessionState.Word);
 }
@@ -610,6 +737,132 @@ static ModuleScreen HandleMailSend(
     sessionState.Mail.Body = "Please send the current pipeline figures before noon.";
     persistState = true;
     return module.BuildSentItemsScreen(sessionState.Mail);
+}
+
+static ModuleScreen HandleCommunicationsDial(
+    CommunicationsModule module,
+    AppSessionState sessionState,
+    string target,
+    out bool persistState)
+{
+    sessionState.Communications.CurrentTarget = target;
+    sessionState.Communications.IsConnected = true;
+    sessionState.Communications.SessionLog.Add($"Dialed {target}");
+    persistState = true;
+    return module.BuildDialScreen(sessionState.Communications, target);
+}
+
+static ModuleScreen HandleCommunicationsSend(
+    CommunicationsModule module,
+    AppSessionState sessionState,
+    string fileName,
+    out bool persistState)
+{
+    sessionState.Communications.LastTransferFile = fileName;
+    sessionState.Communications.SessionLog.Add($"Transferred {fileName}");
+    persistState = true;
+    return module.BuildSendScreen(sessionState.Communications, fileName);
+}
+
+static ModuleScreen HandleCommunicationsCapture(
+    CommunicationsModule module,
+    AppSessionState sessionState,
+    string mode,
+    out bool persistState)
+{
+    sessionState.Communications.CaptureMode = mode;
+    sessionState.Communications.SessionLog.Add($"Capture {mode}");
+    persistState = true;
+    return module.BuildCaptureScreen(sessionState.Communications, mode);
+}
+
+static ModuleScreen HandleReportingRun(
+    ReportingModule module,
+    AppSessionState sessionState,
+    string reportName,
+    out bool persistState)
+{
+    sessionState.Reporting.LastRunReport = reportName;
+    sessionState.Reporting.LastRunAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+    sessionState.Reporting.OutputHistory.Add($"{reportName}-{DateTime.Now:yyyyMMdd-HHmmss}.lst");
+    persistState = true;
+    return module.BuildRunScreen(sessionState.Reporting, reportName, sessionState.Database);
+}
+
+static ModuleScreen HandleReportingSchedule(
+    ReportingModule module,
+    AppSessionState sessionState,
+    string queueName,
+    out bool persistState)
+{
+    sessionState.Reporting.ScheduledQueue = queueName;
+    persistState = true;
+    return module.BuildScheduleScreen(sessionState.Reporting, queueName);
+}
+
+static ModuleScreen HandleReportingDesign(
+    ReportingModule module,
+    AppSessionState sessionState,
+    string reportName,
+    out bool persistState)
+{
+    sessionState.Reporting.ActiveLayout = reportName;
+    persistState = true;
+    return module.BuildDesignScreen(sessionState.Reporting, reportName);
+}
+
+static ModuleScreen HandleProgrammingRun(
+    ProgrammingModule module,
+    AppSessionState sessionState,
+    string programName,
+    out bool persistState)
+{
+    sessionState.Programming.ProgramName = programName;
+    sessionState.Programming.LastRunAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+    persistState = true;
+    return module.BuildRunScreen(sessionState.Programming, programName);
+}
+
+static ModuleScreen HandleProgrammingCompile(
+    ProgrammingModule module,
+    AppSessionState sessionState,
+    string programName,
+    out bool persistState)
+{
+    sessionState.Programming.ProgramName = programName;
+    sessionState.Programming.LastCompileTarget = Path.GetFileNameWithoutExtension(programName) + ".pbc";
+    persistState = true;
+    return module.BuildCompileScreen(sessionState.Programming, programName);
+}
+
+static ModuleScreen HandleProgrammingSource(
+    ProgrammingModule module,
+    AppSessionState sessionState,
+    string argument,
+    out bool persistState)
+{
+    if (string.Equals(argument, "reset", StringComparison.OrdinalIgnoreCase))
+    {
+        sessionState.Programming.SourceLines =
+        [
+            "LET company = \"Nordwest Handel\"",
+            "LET openInvoices = 14",
+            "LET agingDays = 63",
+            "PRINT company",
+            "PRINT openInvoices + agingDays"
+        ];
+        persistState = true;
+        return module.BuildSourceScreen(sessionState.Programming);
+    }
+
+    if (argument.StartsWith("add ", StringComparison.OrdinalIgnoreCase))
+    {
+        sessionState.Programming.SourceLines.Add(argument[4..]);
+        persistState = true;
+        return module.BuildSourceScreen(sessionState.Programming);
+    }
+
+    throw new InvalidOperationException("Usage: source add <statement> | source reset");
 }
 
 static string Fit(string text, int width)

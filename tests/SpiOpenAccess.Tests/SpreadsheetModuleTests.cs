@@ -19,4 +19,19 @@ public sealed class SpreadsheetModuleTests
 
         Assert.Contains(screen.Content, line => line.Contains("812,125", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void GridEditingAndSum_AreComputedFromState()
+    {
+        var module = new SpreadsheetModule();
+        var state = new SpreadsheetWorkspaceState();
+        state.SelectCell("B2");
+        state.SetCell("B2", 250000m);
+
+        var grid = module.BuildGridScreen(state);
+        var sum = module.BuildCellSumScreen(state, "A2", "D2");
+
+        Assert.Contains(grid.Content, line => line.Contains("Active cell      : B2", StringComparison.Ordinal));
+        Assert.Contains(sum.Content, line => line.Contains("Result", StringComparison.Ordinal));
+    }
 }

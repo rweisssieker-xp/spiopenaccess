@@ -13,14 +13,22 @@ public sealed class CommunicationsModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
+        return BuildHomeScreen(workspace, new CommunicationsWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, CommunicationsWorkspaceState state)
+    {
         var content = new[]
         {
             $"Profile set      : {workspace.Owner}-OPS",
             "Connections      : COM1, COM2, TCP bridge",
             "Protocols        : XMODEM, YMODEM, ASCII capture",
-            "Last session     : BBS mirror sync completed",
+            $"Current target   : {state.CurrentTarget}",
+            $"Connection state : {(state.IsConnected ? "Connected" : "Idle")}",
+            $"Capture mode     : {state.CaptureMode}",
+            $"Last transfer    : {state.LastTransferFile}",
             "Log buffer       : 128 KB",
-            "Automation       : Nightly upload + receive"
+            $"Session log      : {(state.SessionLog.Count == 0 ? "<empty>" : state.SessionLog[^1])}"
         };
 
         return ModuleScreen.Create(
@@ -32,6 +40,11 @@ public sealed class CommunicationsModule : IOfficeModule
 
     public ModuleScreen BuildDialScreen(string target)
     {
+        return BuildDialScreen(new CommunicationsWorkspaceState { CurrentTarget = target, IsConnected = true }, target);
+    }
+
+    public ModuleScreen BuildDialScreen(CommunicationsWorkspaceState state, string target)
+    {
         return ModuleScreen.Create(
             "Dial Session",
             "Communication session setup.",
@@ -42,12 +55,17 @@ public sealed class CommunicationsModule : IOfficeModule
                 "Baud             : 9600",
                 "Parity           : None",
                 "Handshake        : XON/XOFF",
-                "Status           : Carrier detected"
+                $"Status           : {(state.IsConnected ? "Carrier detected" : "Idle")}"
             },
             ["send orders.dat", "capture on", "back"]);
     }
 
     public ModuleScreen BuildSendScreen(string fileName)
+    {
+        return BuildSendScreen(new CommunicationsWorkspaceState { LastTransferFile = fileName, IsConnected = true }, fileName);
+    }
+
+    public ModuleScreen BuildSendScreen(CommunicationsWorkspaceState state, string fileName)
     {
         return ModuleScreen.Create(
             "File Transfer",
@@ -58,12 +76,17 @@ public sealed class CommunicationsModule : IOfficeModule
                 "Protocol         : YMODEM",
                 "Blocks sent      : 18",
                 "Retries          : 0",
-                "Status           : Transfer complete"
+                $"Status           : {(state.IsConnected ? "Transfer complete" : "No carrier")}"
             },
             ["dial HQ", "capture on", "back"]);
     }
 
     public ModuleScreen BuildCaptureScreen(string mode)
+    {
+        return BuildCaptureScreen(new CommunicationsWorkspaceState { CaptureMode = mode }, mode);
+    }
+
+    public ModuleScreen BuildCaptureScreen(CommunicationsWorkspaceState state, string mode)
     {
         return ModuleScreen.Create(
             "Capture Buffer",
@@ -74,7 +97,7 @@ public sealed class CommunicationsModule : IOfficeModule
                 "Output file      : HQ-SESSION.LOG",
                 "Size limit       : 128 KB",
                 "Rotation         : Disabled",
-                "Status           : Capture armed"
+                $"Status           : {(string.Equals(state.CaptureMode, "on", StringComparison.OrdinalIgnoreCase) ? "Capture armed" : "Capture stopped")}"
             },
             ["dial HQ", "send orders.dat", "back"]);
     }

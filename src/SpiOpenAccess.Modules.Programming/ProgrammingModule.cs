@@ -22,11 +22,17 @@ public sealed class ProgrammingModule : IOfficeModule
 
     public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace)
     {
-        var runtime = RunProgram(SampleProgram);
+        return BuildHomeScreen(workspace, new ProgrammingWorkspaceState());
+    }
+
+    public ModuleScreen BuildHomeScreen(OfficeWorkspace workspace, ProgrammingWorkspaceState state)
+    {
+        var runtime = RunProgram(string.Join(Environment.NewLine, state.SourceLines));
         var content = new List<string>
         {
             $"Workspace         : {workspace.Name}",
             "Language          : PRO-inspired scripting runtime",
+            $"Program           : {state.ProgramName}",
             $"Statements        : {runtime.StatementCount}",
             $"Variables         : {runtime.Variables.Count}",
             "Sample output     :"
@@ -43,12 +49,18 @@ public sealed class ProgrammingModule : IOfficeModule
 
     public ModuleScreen BuildRunScreen(string programName)
     {
-        var result = RunProgram(SampleProgram);
+        return BuildRunScreen(new ProgrammingWorkspaceState { ProgramName = programName }, programName);
+    }
+
+    public ModuleScreen BuildRunScreen(ProgrammingWorkspaceState state, string programName)
+    {
+        var result = RunProgram(string.Join(Environment.NewLine, state.SourceLines));
         var content = new List<string>
         {
             $"Program          : {programName}",
             $"Statements       : {result.StatementCount}",
             $"Variables        : {result.Variables.Count}",
+            $"Last run         : {state.LastRunAt}",
             "Output           :"
         };
         content.AddRange(result.Output.Select(line => $"  {line}"));
@@ -62,7 +74,12 @@ public sealed class ProgrammingModule : IOfficeModule
 
     public ModuleScreen BuildVariablesScreen()
     {
-        var result = RunProgram(SampleProgram);
+        return BuildVariablesScreen(new ProgrammingWorkspaceState());
+    }
+
+    public ModuleScreen BuildVariablesScreen(ProgrammingWorkspaceState state)
+    {
+        var result = RunProgram(string.Join(Environment.NewLine, state.SourceLines));
         var content = result.Variables
             .Select(pair => $"  {pair.Key,-16} {Convert.ToString(pair.Value, CultureInfo.InvariantCulture)}")
             .Prepend("Variable state    :")
@@ -77,6 +94,11 @@ public sealed class ProgrammingModule : IOfficeModule
 
     public ModuleScreen BuildCompileScreen(string programName)
     {
+        return BuildCompileScreen(new ProgrammingWorkspaceState(), programName);
+    }
+
+    public ModuleScreen BuildCompileScreen(ProgrammingWorkspaceState state, string programName)
+    {
         return ModuleScreen.Create(
             $"Compile {programName}",
             "Compile and prepare a batch program.",
@@ -85,10 +107,27 @@ public sealed class ProgrammingModule : IOfficeModule
                 $"Source           : {programName}",
                 "Passes           : lex, parse, bind",
                 "Warnings         : 0",
-                "Output           : nightly.pbc",
+                $"Output           : {state.LastCompileTarget}",
                 "Status           : Compile successful"
             },
             ["run sample.pro", "list variables", "back"]);
+    }
+
+    public ModuleScreen BuildSourceScreen(ProgrammingWorkspaceState state)
+    {
+        var content = new List<string>
+        {
+            $"Program          : {state.ProgramName}",
+            $"Line count       : {state.SourceLines.Count}",
+            "Source           :"
+        };
+        content.AddRange(state.SourceLines.Select((line, index) => $"  {index + 1,2}: {line}"));
+
+        return ModuleScreen.Create(
+            "Program Source",
+            "Current editable program buffer.",
+            content,
+            ["source add <statement>", "source reset", "run sample.pro"]);
     }
 
     public ProgramResult RunProgram(string source)

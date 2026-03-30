@@ -108,4 +108,20 @@ public sealed class DatabaseCatalogLoaderTests
 
         Assert.DoesNotContain(deleted.Content, line => line.Contains("C-1004", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void DatabaseModule_CanBrowseAcrossCurrentRows()
+    {
+        var module = new DatabaseModule(DatabaseCatalogLoader.LoadDefault());
+        var state = module.CreateWorkspaceState();
+
+        var browse = module.BuildBrowseScreen(state, "CUSTOMERS");
+        var next = module.MoveNext(state);
+        var previous = module.MovePrevious(state);
+
+        Assert.Contains(browse.Content, line => line.Contains("Current row      : 1 of", StringComparison.Ordinal));
+        Assert.Contains(browse.Content, line => line.StartsWith("> ", StringComparison.Ordinal));
+        Assert.Contains(next.Content, line => line.Contains("Current row      : 2 of", StringComparison.Ordinal));
+        Assert.Contains(previous.Content, line => line.Contains("Current row      : 1 of", StringComparison.Ordinal));
+    }
 }
